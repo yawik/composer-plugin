@@ -11,6 +11,9 @@ namespace YawikTest\Composer;
 
 use Composer\Composer;
 use Composer\DependencyResolver\Operation\InstallOperation;
+use Composer\DependencyResolver\Operation\OperationInterface;
+use Composer\DependencyResolver\Operation\UninstallOperation;
+use Composer\DependencyResolver\Operation\UpdateOperation;
 use Composer\Installer\InstallationManager;
 use Composer\Installer\PackageEvent;
 use Composer\IO\IOInterface;
@@ -83,40 +86,15 @@ class PluginTest extends TestCase
         ], Plugin::getSubscribedEvents());
     }
 
-    private function initializeMock()
+    public function testGetInstaller()
     {
-        $this->package = $this->prophesize(PackageInterface::class);
-        $installManager = $this->prophesize(InstallationManager::class);
-        $installManager
-            ->getInstallPath($this->package->reveal())
-            ->willReturn($this->testDir)
-            ->shouldBeCalled()
-        ;
+        $plugin = new Plugin();
+        $this->assertInstanceOf(AssetsInstaller::class, $plugin->getAssetsInstaller());
 
-        $composer = $this->prophesize(Composer::class);
-        $composer->getInstallationManager()
-            ->will([$installManager,'reveal'])
-            ->shouldBeCalled()
-        ;
-
-        $operation = $this->prophesize(InstallOperation::class);
-        $operation
-            ->getPackage()
-            ->will([$this->package,'reveal'])
-            ->shouldBeCalled()
-        ;
-
-        $this->event = $this->prophesize(PackageEvent::class);
-        $this->event
-            ->getOperation()
-            ->will([$operation,'reveal'])
-            ->shouldBeCalled()
-        ;
-
-        $this->output         = $this->prophesize(IOInterface::class);
-        $this->composer       = $composer;
-        $this->operation      = $operation;
-        $this->installManager = $installManager;
+        $plugin = new Plugin();
+        $assetsInstaller = new AssetsInstaller();
+        $plugin->setAssetsInstaller($assetsInstaller);
+        $this->assertEquals($assetsInstaller, $plugin->getAssetsInstaller());
     }
 
     public function testOnPostPackageInstall()
@@ -138,16 +116,152 @@ class PluginTest extends TestCase
         ;
         $assetsInstaller = $this->prophesize(AssetsInstaller::class);
         $assetsInstaller->install([
-                'SomeModule' => $this->testDir.'/public'
-            ])
+            'SomeModule' => $this->testDir.'/public'
+        ])
             ->shouldBeCalled()
         ;
 
-        @mkdir($this->testDir.'/public');
         $plugin = new Plugin($this->filesystem);
         $plugin->setAssetsInstaller($assetsInstaller->reveal());
         $plugin->activate($this->composer->reveal(), $this->output->reveal());
         $plugin->onPostPackageInstall($event->reveal());
         $plugin->onPostAutoloadDump();
+    }
+
+    public function testOnPostPackageUpdate()
+    {
+        $this->initializeMock('update');
+        $event = $this->event;
+        $package = $this->package;
+        $package->getType()
+            ->willReturn('yawik-module')
+            ->shouldBeCalled()
+        ;
+        $package->getExtra()
+            ->shouldBeCalled()
+            ->willReturn([
+                'zf' => [
+                    'module' => 'SomeModule'
+                ]
+            ])
+        ;
+        $assetsInstaller = $this->prophesize(AssetsInstaller::class);
+        $assetsInstaller->install([
+            'SomeModule' => $this->testDir.'/public'
+        ])
+            ->shouldBeCalled()
+        ;
+
+        $plugin = new Plugin();
+        $plugin->setAssetsInstaller($assetsInstaller->reveal());
+        $plugin->activate($this->composer->reveal(), $this->output->reveal());
+        $plugin->onPostPackageUpdate($event->reveal());
+        $plugin->onPostAutoloadDump();
+    }
+
+    public function testOnPrePackageUninstall()
+    {
+        $this->initializeMock();
+        $event = $this->event;
+        $package = $this->package;
+        $package->getType()
+            ->willReturn('yawik-module')
+            ->shouldBeCalled()
+        ;
+        $package->getExtra()
+            ->shouldBeCalled()
+            ->willReturn([
+                'zf' => [
+                    'module' => 'SomeModule'
+                ]
+            ])
+        ;
+        $assetsInstaller = $this->prophesize(AssetsInstaller::class);
+        $assetsInstaller->uninstall([
+            'SomeModule'
+        ])
+            ->shouldBeCalled()
+        ;
+
+
+        $plugin = new Plugin();
+        $plugin->setAssetsInstaller($assetsInstaller->reveal());
+        $plugin->activate($this->composer->reveal(), $this->output->reveal());
+        $plugin->onPrePackageUninstall($event->reveal());
+        $plugin->onPostAutoloadDump();
+    }
+
+    public function testOnNonYawikModule()
+    {
+        $this->initializeMock();
+        $event = $this->event;
+        $package = $this->package;
+        $package->getType()
+            ->willReturn('other-type')
+            ->shouldBeCalled()
+        ;
+        $package->getExtra()
+            ->shouldBeCalled()
+            ->willReturn([
+                'zf' => [
+                    'module' => 'SomeModule'
+                ]
+            ])
+        ;
+        $assetsInstaller = $this->prophesize(AssetsInstaller::class);
+        $assetsInstaller->install()
+            ->shouldNotBeCalled()
+        ;
+
+        $plugin = new Plugin();
+        $plugin->setAssetsInstaller($assetsInstaller->reveal());
+        $plugin->activate($this->composer->reveal(), $this->output->reveal());
+        $plugin->onPostPackageInstall($event->reveal());
+        $plugin->onPostAutoloadDump();
+    }
+
+    private function initializeMock($operationType = 'install')
+    {
+        $this->package = $this->prophesize(PackageInterface::class);
+        $installManager = $this->prophesize(InstallationManager::class);
+        $installManager
+            ->getInstallPath($this->package->reveal())
+            ->willReturn($this->testDir)
+            ->shouldBeCalled()
+        ;
+
+        $composer = $this->prophesize(Composer::class);
+        $composer->getInstallationManager()
+            ->will([$installManager,'reveal'])
+            ->shouldBeCalled()
+        ;
+
+        if ($operationType == 'update') {
+            $operation = $this->prophesize(UpdateOperation::class);
+            $operation->getTargetPackage()
+                ->will([$this->package,'reveal'])
+                ->shouldBeCalled()
+            ;
+        } else {
+            $operation = $this->prophesize(InstallOperation::class);
+            $operation
+                ->getPackage()
+                ->will([$this->package,'reveal'])
+                ->shouldBeCalled()
+            ;
+        }
+
+        $this->event = $this->prophesize(PackageEvent::class);
+        $this->event
+            ->getOperation()
+            ->will([$operation,'reveal'])
+            ->shouldBeCalled()
+        ;
+
+        $this->output         = $this->prophesize(IOInterface::class);
+        $this->composer       = $composer;
+        $this->operation      = $operation;
+        $this->installManager = $installManager;
+        @mkdir($this->testDir.'/public');
     }
 }

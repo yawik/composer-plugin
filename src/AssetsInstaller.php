@@ -36,12 +36,6 @@ class AssetsInstaller
      */
     private $input;
 
-    /**
-     * An array of [module_name] => [public_dir]
-     * @var array
-     */
-    private $assets = [];
-
     public function __construct(Filesystem $filesystem = null)
     {
         if (is_null($filesystem)) {
@@ -86,11 +80,16 @@ class AssetsInstaller
         return $this;
     }
 
+    /**
+     * Install modules assets with the given $modules.
+     * $modules should within this format:
+     *
+     * [module_name] => module_public_directory
+     *
+     * @param array $modules An array of modules
+     */
     public function install($modules)
     {
-        $io = new SymfonyStyle($this->input, $this->output);
-        $io->newLine();
-
         $rows = [];
         $exitCode = 0;
         $copyUsed = false;
@@ -119,17 +118,9 @@ class AssetsInstaller
             }
         }
 
-        if ($rows) {
-            $io->table(array('', 'Module', 'Method / Error'), $rows);
-        }
-
-        if (0 !== $exitCode) {
-            $io->error('Some errors occurred while installing assets.');
-        } else {
-            if ($copyUsed) {
-                $io->note('Some assets were installed via copy. If you make changes to these assets you have to run this command again.');
-            }
-            $io->success($rows ? 'All assets were successfully installed.' : 'No assets were provided by any bundle.');
+        // render this output only on cli environment
+        if ($this->isCli()) {
+            $this->renderInstallOutput($copyUsed, $rows, $exitCode);
         }
     }
 
@@ -145,6 +136,35 @@ class AssetsInstaller
         }
     }
 
+    public function getModuleAssetDir()
+    {
+        return $this->getPublicDir().'/modules';
+    }
+
+    private function renderInstallOutput($copyUsed, $rows, $exitCode)
+    {
+        $io = new SymfonyStyle($this->input, $this->output);
+        $io->newLine();
+
+        if ($rows) {
+            $io->table(array('', 'Module', 'Method / Error'), $rows);
+        }
+
+        if (0 !== $exitCode) {
+            $io->error('Some errors occurred while installing assets.');
+        } else {
+            if ($copyUsed) {
+                $io->note('Some assets were installed via copy. If you make changes to these assets you have to run this command again.');
+            }
+            $io->success($rows ? 'All assets were successfully installed.' : 'No assets were provided by any bundle.');
+        }
+    }
+
+    private function isCli()
+    {
+        return php_sapi_name() === 'cli';
+    }
+
     private function getPublicDir()
     {
         $dirs = [
@@ -156,37 +176,6 @@ class AssetsInstaller
                 return $dir;
             }
         }
-    }
-
-    public function getModuleAssetDir()
-    {
-        return $this->getPublicDir().'/modules';
-    }
-
-    private function processModule($module)
-    {
-        if (is_string($module) && class_exists($module, true)) {
-            $module = new $module();
-        } else {
-            $this->output->writeln($module);
-            return;
-        }
-
-        $r = new \ReflectionObject($module);
-
-        $file = $r->getFileName();
-
-        if ($module instanceof AssetProviderInterface) {
-            $dir = $module->getPublicDir();
-        } else {
-            $baseDir = substr($file, 0, stripos($file, 'src'.DIRECTORY_SEPARATOR.'Module.php'));
-            if (empty($baseDir) || !is_dir($dir = $baseDir.'public')) {
-                return;
-            }
-        }
-        $className = get_class($module);
-        $moduleName = substr($className, 0, strpos($className, '\\'));
-        $this->assets[$moduleName] = $dir;
     }
 
     /**

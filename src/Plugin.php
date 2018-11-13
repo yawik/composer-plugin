@@ -17,6 +17,7 @@ use Composer\DependencyResolver\Operation\UninstallOperation;
 use Composer\EventDispatcher\EventSubscriberInterface;
 use Composer\Installer\PackageEvent;
 use Composer\IO\IOInterface;
+use Composer\Package\PackageInterface;
 use Composer\Plugin\PluginInterface;
 use Composer\Script\Event as ScriptEvent;
 use Symfony\Component\Console\Input\ArgvInput;
@@ -104,23 +105,26 @@ class Plugin implements PluginInterface, EventSubscriberInterface
 
     public function onPostPackageInstall(PackageEvent $event)
     {
-        $this->scanModules($event, static::SCAN_TYPE_INSTALL);
+        $package = $event->getOperation()->getPackage();
+        $this->scanModules($package, static::SCAN_TYPE_INSTALL);
     }
 
     public function onPostPackageUpdate(PackageEvent $event)
     {
-        $this->scanModules($event, static::SCAN_TYPE_INSTALL);
+        $package = $event->getOperation()->getTargetPackage();
+        $this->scanModules($package, static::SCAN_TYPE_INSTALL);
     }
 
     public function onPrePackageUninstall(PackageEvent $event)
     {
-        $this->scanModules($event, static::SCAN_TYPE_REMOVE);
+        $package = $event->getOperation()->getPackage();
+        $this->scanModules($package, static::SCAN_TYPE_REMOVE);
     }
 
     /**
      * @return AssetsInstaller
      */
-    private function getAssetsInstaller()
+    public function getAssetsInstaller()
     {
         if (!is_object($this->assetsInstaller)) {
             $assetInstaller = new AssetsInstaller();
@@ -133,23 +137,14 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         return $this->assetsInstaller;
     }
 
-    private function scanModules(PackageEvent $event, $scanType='install')
+    private function scanModules(PackageInterface $package, $scanType='install')
     {
-        $operation  = $event->getOperation();
-        if ($operation instanceof UpdateOperation) {
-            $package = $operation->getTargetPackage();
-        } elseif ($operation instanceof InstallOperation  || $operation instanceof UninstallOperation) {
-            $package = $operation->getPackage();
-        } else {
-            $this->output->write("[yawik] unknown operation type: ".get_class($operation));
-            return;
-        }
-        $installer = $this->composer->getInstallationManager();
-        $packagePath = $installer->getInstallPath($package);
+        $installer      = $this->composer->getInstallationManager();
+        $packagePath    = $installer->getInstallPath($package);
+        $type           = $package->getType();
+        $publicDir      = $packagePath.'/public';
+        $extras         = $package->getExtra();
 
-        $type       = $package->getType();
-        $publicDir  = $packagePath.'/public';
-        $extras     = $package->getExtra();
         if (file_exists($publicDir) && $type === static::YAWIK_MODULE_TYPE) {
             // we skip undefined zf module definition
             if (isset($extras['zf']['module'])) {
