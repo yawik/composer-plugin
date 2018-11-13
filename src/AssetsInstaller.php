@@ -86,7 +86,7 @@ class AssetsInstaller
         return $this;
     }
 
-    public function install($modules, $publicDir = null)
+    public function install($modules)
     {
         $io = new SymfonyStyle($this->input, $this->output);
         $io->newLine();

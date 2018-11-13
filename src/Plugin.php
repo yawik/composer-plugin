@@ -11,6 +11,8 @@
 namespace Yawik\Composer;
 
 use Composer\Composer;
+use Composer\DependencyResolver\Operation\InstallOperation;
+use Composer\DependencyResolver\Operation\UpdateOperation;
 use Composer\EventDispatcher\EventSubscriberInterface;
 use Composer\Installer\PackageEvent;
 use Composer\IO\IOInterface;
@@ -47,8 +49,6 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     private $uninstalled = [];
 
     private $projectPath;
-
-    private $packages = [];
 
     /**
      * @var AssetsInstaller
@@ -135,7 +135,15 @@ class Plugin implements PluginInterface, EventSubscriberInterface
 
     private function scanModules(PackageEvent $event, $scanType='install')
     {
-        $package    = $event->getOperation()->getPackage();
+        $operation  = $event->getOperation();
+        if ($operation instanceof UpdateOperation) {
+            $package = $operation->getTargetPackage();
+        } elseif ($operation instanceof InstallOperation) {
+            $package = $operation->getPackage();
+        } else {
+            // just return
+            return;
+        }
         $installer = $this->composer->getInstallationManager();
         $packagePath = $installer->getInstallPath($package);
 
