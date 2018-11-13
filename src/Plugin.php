@@ -35,7 +35,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     /**
      * @var IOInterface
      */
-    private $io;
+    private $output;
 
     /**
      * An array list of available modules
@@ -53,17 +53,27 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     /**
      * @var AssetsInstaller
      */
-    private $assetInstaller;
+    private $assetsInstaller;
 
     public function __construct($projectPath=null)
     {
-        $this->projectPath = getcwd();
+        $this->projectPath = is_null($projectPath) ? getcwd():$projectPath;
     }
 
     public function activate(Composer $composer, IOInterface $io)
     {
-        $this->composer     = $composer;
-        $this->io           = $io;
+        $this->composer = $composer;
+        $this->output   = $io;
+    }
+
+    /**
+     * Define AssetsInstaller to use
+     * This very usefull during testing process
+     * @param $installer
+     */
+    public function setAssetsInstaller($installer)
+    {
+        $this->assetsInstaller = $installer;
     }
 
     /**
@@ -74,21 +84,21 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     public static function getSubscribedEvents()
     {
         return [
-            'post-autoload-dump'    => 'onPostAutoloadDump',
-            'post-package-install'  => 'onPostPackageInstall',
-            'post-package-update'   => 'onPostPackageUpdate',
-            'pre-package-uninstall' => 'onPrePackageUninstall',
+            'post-autoload-dump'     => 'onPostAutoloadDump',
+            'post-package-install'   => 'onPostPackageInstall',
+            'post-package-update'    => 'onPostPackageUpdate',
+            'pre-package-uninstall'  => 'onPrePackageUninstall',
             'post-package-uninstall' => 'onPostPackageUninstall'
         ];
     }
 
-    public function onPostAutoloadDump(ScriptEvent $event)
+    public function onPostAutoloadDump()
     {
         if (count($this->modules) > 0) {
-            $this->getAssets()->install($this->modules);
+            $this->getAssetsInstaller()->install($this->modules);
         }
         if (count($this->uninstalled) > 0) {
-            $this->getAssets()->uninstall($this->uninstalled);
+            $this->getAssetsInstaller()->uninstall($this->uninstalled);
         }
     }
 
@@ -110,21 +120,21 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     /**
      * @return AssetsInstaller
      */
-    private function getAssets()
+    private function getAssetsInstaller()
     {
-        if (!is_object($this->assetInstaller)) {
+        if (!is_object($this->assetsInstaller)) {
             $assetInstaller = new AssetsInstaller();
             if (php_sapi_name()==='cli') {
                 $io = new SymfonyStyle(new ArgvInput(), new ConsoleOutput());
                 $assetInstaller->setInput(new ArgvInput())->setOutput(new ConsoleOutput());
                 $assetInstaller->getOutput()->setDecorated(true);
             }
-            $this->assetInstaller = $assetInstaller;
+            $this->assetsInstaller = $assetInstaller;
         }
-        return $this->assetInstaller;
+        return $this->assetsInstaller;
     }
 
-    private function scanModules(PackageEvent $event, $type='install')
+    private function scanModules(PackageEvent $event, $scanType='install')
     {
         $package    = $event->getOperation()->getPackage();
         $installer = $this->composer->getInstallationManager();
@@ -133,18 +143,18 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         $type       = $package->getType();
         $publicDir  = $packagePath.'/public';
         $extras     = $package->getExtra();
-        if (is_dir($publicDir) && $type === static::YAWIK_MODULE_TYPE) {
+        if (file_exists($publicDir) && $type === static::YAWIK_MODULE_TYPE) {
             // we skip undefined zf module definition
             if (isset($extras['zf']['module'])) {
                 // we register module class name
                 $moduleName     = $extras['zf']['module'];
-                if ($type==='install') {
+                if ($scanType === 'install') {
                     $this->modules[$moduleName] = realpath($publicDir);
                 } else {
                     $this->uninstalled[] = $moduleName;
                 }
             } else {
-                $this->io->write('[warning] No module definition for: '.$package->getName());
+                $this->output->write('[warning] No module definition for: ' . $package->getName());
             }
         }
     }
