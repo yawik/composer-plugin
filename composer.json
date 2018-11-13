@@ -1,7 +1,6 @@
 {
-    "name": "yawik/composer-plugin",
-    "description": "A composer plugin for Yawik Application",
-    "type": "composer-plugin",
+    "name": "yawik/test",
+    "type": "project",
     "license": "MIT",
     "authors": [
         {
@@ -37,12 +36,5 @@
         "psr-4": {
             "YawikTest\\Composer\\": "test"
         }
-    },
-    "extra": {
-        "branch-alias": {
-            "dev-master": "0.32-dev",
-            "dev-develop": "0.33-dev"
-        },
-        "class": "Yawik\\Composer\\Plugin"
     }
 }

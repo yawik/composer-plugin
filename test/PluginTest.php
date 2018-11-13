@@ -9,8 +9,9 @@
 
 namespace YawikTest\Composer;
 
+use PHPUnit\Framework\TestCase;
 use Yawik\Composer\Plugin;
 
-class PluginTest extends \PHPUnit_Framework_TestCase
+class PluginTest extends TestCase
 {
 }

@@ -10,8 +10,10 @@
 
 namespace Yawik\Composer;
 
+use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Style\SymfonyStyle;
 
 class AssetsInstaller
 {
@@ -25,30 +27,67 @@ class AssetsInstaller
     private $filesystem;
 
     /**
-     * @var array
-     */
-    private $modules = [];
-
-    /**
      * @var OutputInterface
      */
     private $output;
 
-    public function __construct(
-        array $modules,
-        $filesystem = null
-    ) {
-        ksort($modules);
-        $this->modules = $modules;
-        $this->filesystem = is_null($filesystem) ? new Filesystem():$filesystem;
+    /**
+     * @var InputInterface
+     */
+    private $input;
+
+    /**
+     * An array of [module_name] => [public_dir]
+     * @var array
+     */
+    private $assets = [];
+
+    public function __construct(Filesystem $filesystem = null)
+    {
+        if (is_null($filesystem)) {
+            $filesystem = new Filesystem();
+        }
+        $this->filesystem = $filesystem;
     }
 
-
-
-    public function install()
+    /**
+     * @return OutputInterface
+     */
+    public function getOutput()
     {
-        /* @var \Zend\Console\Request $request */
+        return $this->output;
+    }
 
+    /**
+     * @param OutputInterface $output
+     * @return AssetsInstaller
+     */
+    public function setOutput($output)
+    {
+        $this->output = $output;
+        return $this;
+    }
+
+    /**
+     * @return InputInterface
+     */
+    public function getInput()
+    {
+        return $this->input;
+    }
+
+    /**
+     * @param InputInterface $input
+     * @return AssetsInstaller
+     */
+    public function setInput($input)
+    {
+        $this->input = $input;
+        return $this;
+    }
+
+    public function install($modules, $publicDir = null)
+    {
         $io = new SymfonyStyle($this->input, $this->output);
         $io->newLine();
 
@@ -56,9 +95,9 @@ class AssetsInstaller
         $exitCode = 0;
         $copyUsed = false;
 
-        $publicDir = $request->getParam('target', getcwd().'/public/modules');
+        $publicDir = $this->getPublicDir();
         $expectedMethod = self::METHOD_RELATIVE_SYMLINK;
-        foreach ($this->modules as $name => $originDir) {
+        foreach ($modules as $name => $originDir) {
             $targetDir = $publicDir.DIRECTORY_SEPARATOR.$name;
             $message = $name;
             try {
@@ -92,6 +131,62 @@ class AssetsInstaller
             }
             $io->success($rows ? 'All assets were successfully installed.' : 'No assets were provided by any bundle.');
         }
+    }
+
+    public function uninstall($modules)
+    {
+        $assetDir = $this->getModuleAssetDir();
+        foreach ($modules as $name) {
+            $publicPath = $assetDir.DIRECTORY_SEPARATOR.$name;
+            if (is_dir($publicPath) || is_link($publicPath)) {
+                $this->filesystem->remove($publicPath);
+                $this->output->writeln("'Removed module assets: <info>${name}</info>'");
+            }
+        }
+    }
+
+    private function getPublicDir()
+    {
+        $dirs = [
+            getcwd().'/test/sandbox/public',
+            getcwd().'/public'
+        ];
+        foreach ($dirs as $dir) {
+            if (is_dir($dir)) {
+                return $dir;
+            }
+        }
+    }
+
+    public function getModuleAssetDir()
+    {
+        return $this->getPublicDir().'/modules';
+    }
+
+    private function processModule($module)
+    {
+        if (is_string($module) && class_exists($module, true)) {
+            $module = new $module();
+        } else {
+            $this->output->writeln($module);
+            return;
+        }
+
+        $r = new \ReflectionObject($module);
+
+        $file = $r->getFileName();
+
+        if ($module instanceof AssetProviderInterface) {
+            $dir = $module->getPublicDir();
+        } else {
+            $baseDir = substr($file, 0, stripos($file, 'src'.DIRECTORY_SEPARATOR.'Module.php'));
+            if (empty($baseDir) || !is_dir($dir = $baseDir.'public')) {
+                return;
+            }
+        }
+        $className = get_class($module);
+        $moduleName = substr($className, 0, strpos($className, '\\'));
+        $this->assets[$moduleName] = $dir;
     }
 
     /**
