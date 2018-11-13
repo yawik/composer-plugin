@@ -14,6 +14,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use Symfony\Component\Finder\Finder;
 
 class AssetsInstaller
 {
@@ -41,6 +42,11 @@ class AssetsInstaller
         if (is_null($filesystem)) {
             $filesystem = new Filesystem();
         }
+        $this->filesystem = $filesystem;
+    }
+
+    public function setFilesystem(Filesystem $filesystem)
+    {
         $this->filesystem = $filesystem;
     }
 
@@ -86,22 +92,30 @@ class AssetsInstaller
      *
      * [module_name] => module_public_directory
      *
-     * @param array $modules An array of modules
+     * @param array     $modules An array of modules
+     * @param string    $expectedMethod Expected install method
      */
-    public function install($modules)
+    public function install($modules, $expectedMethod = self::METHOD_RELATIVE_SYMLINK)
     {
         $rows = [];
         $exitCode = 0;
         $copyUsed = false;
 
         $publicDir = $this->getModuleAssetDir();
-        $expectedMethod = self::METHOD_RELATIVE_SYMLINK;
         foreach ($modules as $name => $originDir) {
             $targetDir = $publicDir.DIRECTORY_SEPARATOR.$name;
             $message = $name;
             try {
                 $this->filesystem->remove($targetDir);
-                $method = $this->relativeSymlinkWithFallback($originDir, $targetDir);
+                if (self::METHOD_RELATIVE_SYMLINK == $expectedMethod) {
+                    $method = $this->relativeSymlinkWithFallback($originDir, $targetDir);
+                } elseif (self::METHOD_ABSOLUTE_SYMLINK == $expectedMethod) {
+                    $expectedMethod = self::METHOD_ABSOLUTE_SYMLINK;
+                    $method = $this->absoluteSymlinkWithFallback($originDir, $targetDir);
+                } else {
+                    $expectedMethod = self::METHOD_COPY;
+                    $method = $this->hardCopy($originDir, $targetDir);
+                }
 
                 if (self::METHOD_COPY === $method) {
                     $copyUsed = true;
