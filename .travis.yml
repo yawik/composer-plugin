@@ -28,9 +28,6 @@ install:
   - pecl install -f ${PECLMONGO}
   - phpenv config-add ./etc/travis/phpenv.ini
 
-before_script:
-  - mkdir -p build/behat
-
 script:
   - ./vendor/bin/phpunit
 

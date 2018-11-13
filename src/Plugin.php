@@ -42,7 +42,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
      *
      * @var array
      */
-    private $modules = [];
+    private $installed = [];
 
     private $uninstalled = [];
 
@@ -94,8 +94,8 @@ class Plugin implements PluginInterface, EventSubscriberInterface
 
     public function onPostAutoloadDump()
     {
-        if (count($this->modules) > 0) {
-            $this->getAssetsInstaller()->install($this->modules);
+        if (count($this->installed) > 0) {
+            $this->getAssetsInstaller()->install($this->installed);
         }
         if (count($this->uninstalled) > 0) {
             $this->getAssetsInstaller()->uninstall($this->uninstalled);
@@ -125,7 +125,6 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         if (!is_object($this->assetsInstaller)) {
             $assetInstaller = new AssetsInstaller();
             if (php_sapi_name()==='cli') {
-                $io = new SymfonyStyle(new ArgvInput(), new ConsoleOutput());
                 $assetInstaller->setInput(new ArgvInput())->setOutput(new ConsoleOutput());
                 $assetInstaller->getOutput()->setDecorated(true);
             }
@@ -149,7 +148,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
                 // we register module class name
                 $moduleName     = $extras['zf']['module'];
                 if ($scanType === 'install') {
-                    $this->modules[$moduleName] = realpath($publicDir);
+                    $this->installed[$moduleName] = realpath($publicDir);
                 } else {
                     $this->uninstalled[] = $moduleName;
                 }
