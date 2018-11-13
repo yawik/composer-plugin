@@ -1,0 +1,48 @@
+{
+    "name": "yawik/composer-plugin",
+    "description": "A composer plugin for Yawik Application",
+    "type": "composer-plugin",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Mathias Gelhausen",
+            "email": "gelhausen@cross-solution.de"
+        },
+        {
+            "name": "Carsten Bleek",
+            "email": "bleek@cross-solution.de"
+        },
+        {
+            "name": "Anthonius Munthi",
+            "homepage": "https://itstoni.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "require": {
+        "composer-plugin-api": "^1.1"
+    },
+    "require-dev": {
+        "composer/composer": ">=1.0.0-alpha10",
+        "phpunit/phpunit": "^5.7.23 || ^6.4.3",
+        "squizlabs/php_codesniffer": "^2.6.2",
+        "mikey179/vfsStream": "^1.6"
+    },
+    "autoload": {
+        "psr-4": {
+            "Yawik\\Composer\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "YawikTest\\Composer\\": "test"
+        }
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-master": "0.32-dev",
+            "dev-develop": "0.33-dev"
+        },
+        "class": "Yawik\\Composer\\Plugin"
+    }
+}
