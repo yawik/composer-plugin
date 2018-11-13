@@ -1,7 +1,7 @@
 {
     "name": "yawik/composer-plugin",
     "description": "The composer plugin for yawik application",
-    "type": "project",
+    "type": "composer-plugin",
     "license": "MIT",
     "authors": [
         {
