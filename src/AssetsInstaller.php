@@ -16,6 +16,12 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Finder\Finder;
 
+/**
+ * Class AssetsInstaller
+ * @package Yawik\Composer
+ * @author  Anthonius Munthi <me@itstoni.com>
+ * @TODO    Create more documentation for methods
+ */
 class AssetsInstaller
 {
     const METHOD_COPY               = 'copy';

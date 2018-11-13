@@ -53,8 +53,8 @@ class AssetsInstallerTest extends TestCase
     {
         static::$cwd = getcwd();
         static::$tempDir = sys_get_temp_dir().'/yawik/assets-install';
-        if (!is_dir(static::$tempDir)) {
-            mkdir(static::$tempDir, 0777, true);
+        if (!is_dir($publicDir = static::$tempDir.'/public')) {
+            mkdir($publicDir, 0777, true);
         }
     }
 
@@ -102,12 +102,11 @@ class AssetsInstallerTest extends TestCase
         $target = static::$tempDir;
         $moduleDir = $target.'/public/modules';
 
-        chdir(static::$tempDir);
         $this->assertTrue(is_dir(static::$tempDir));
         $this->target->install($modules, AssetsInstaller::METHOD_ABSOLUTE_SYMLINK);
         $display = $this->getDisplay(true);
 
-        $this->assertRegExp('/absolute symlink/', $display);
+        $this->assertContains('absolute symlink', $display);
         $this->assertDirectoryExists($moduleDir.'/Core');
         $this->assertDirectoryExists($moduleDir.'/Applications');
         $this->assertFileExists($moduleDir.'/Core/foo.js');

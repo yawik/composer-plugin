@@ -24,6 +24,13 @@ use Symfony\Component\Console\Input\ArgvInput;
 use Symfony\Component\Console\Output\ConsoleOutput;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
+/**
+ * Class Plugin
+ * @package Yawik\Composer
+ * @author  Anthonius Munthi <me@itstoni.com>
+ * @since   0.32.0
+ * @TODO    Create more documentation for methods
+ */
 class Plugin implements PluginInterface, EventSubscriberInterface
 {
     const YAWIK_MODULE_TYPE = 'yawik-module';
