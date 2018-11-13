@@ -22,11 +22,10 @@ matrix:
 before_install:
   - if [[ $COVERAGE != yes ]]; then phpenv config-rm xdebug.ini; fi;
   - pecl channel-update pecl.php.net
+  - phpenv config-add ./etc/travis/phpenv.ini
 
 install:
-  # install php packages required for running YAWIK phpunit tests
-  - pecl install -f ${PECLMONGO}
-  - phpenv config-add ./etc/travis/phpenv.ini
+  - composer install --no-interaction
 
 script:
   - ./vendor/bin/phpunit
