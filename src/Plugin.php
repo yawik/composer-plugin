@@ -13,6 +13,7 @@ namespace Yawik\Composer;
 use Composer\Composer;
 use Composer\DependencyResolver\Operation\InstallOperation;
 use Composer\DependencyResolver\Operation\UpdateOperation;
+use Composer\DependencyResolver\Operation\UninstallOperation;
 use Composer\EventDispatcher\EventSubscriberInterface;
 use Composer\Installer\PackageEvent;
 use Composer\IO\IOInterface;
@@ -87,8 +88,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
             'post-autoload-dump'     => 'onPostAutoloadDump',
             'post-package-install'   => 'onPostPackageInstall',
             'post-package-update'    => 'onPostPackageUpdate',
-            'pre-package-uninstall'  => 'onPrePackageUninstall',
-            'post-package-uninstall' => 'onPostPackageUninstall'
+            'pre-package-uninstall'  => 'onPrePackageUninstall'
         ];
     }
 
@@ -112,7 +112,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         $this->scanModules($event, static::SCAN_TYPE_INSTALL);
     }
 
-    public function onPostPackageUninstall(PackageEvent $event)
+    public function onPrePackageUninstall(PackageEvent $event)
     {
         $this->scanModules($event, static::SCAN_TYPE_REMOVE);
     }
@@ -138,10 +138,10 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         $operation  = $event->getOperation();
         if ($operation instanceof UpdateOperation) {
             $package = $operation->getTargetPackage();
-        } elseif ($operation instanceof InstallOperation) {
+        } elseif ($operation instanceof InstallOperation  || $operation instanceof UninstallOperation) {
             $package = $operation->getPackage();
         } else {
-            // just return
+            $this->output->write("[yawik] unknown operation type: ".get_class($operation));
             return;
         }
         $installer = $this->composer->getInstallationManager();
@@ -155,7 +155,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
             if (isset($extras['zf']['module'])) {
                 // we register module class name
                 $moduleName     = $extras['zf']['module'];
-                if ($scanType === 'install') {
+                if (self::SCAN_TYPE_INSTALL == $scanType) {
                     $this->installed[$moduleName] = realpath($publicDir);
                 } else {
                     $this->uninstalled[] = $moduleName;

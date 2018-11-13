@@ -80,7 +80,6 @@ class PluginTest extends TestCase
             'post-package-install'  => 'onPostPackageInstall',
             'post-package-update'   => 'onPostPackageUpdate',
             'pre-package-uninstall' => 'onPrePackageUninstall',
-            'post-package-uninstall' => 'onPostPackageUninstall'
         ], Plugin::getSubscribedEvents());
     }
 

@@ -95,7 +95,7 @@ class AssetsInstaller
         $exitCode = 0;
         $copyUsed = false;
 
-        $publicDir = $this->getPublicDir();
+        $publicDir = $this->getModuleAssetDir();
         $expectedMethod = self::METHOD_RELATIVE_SYMLINK;
         foreach ($modules as $name => $originDir) {
             $targetDir = $publicDir.DIRECTORY_SEPARATOR.$name;
