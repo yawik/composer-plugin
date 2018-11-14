@@ -25,6 +25,8 @@ before_install:
   - phpenv config-add ./etc/travis/phpenv.ini
 
 install:
+  - pecl channel-update pecl.php.net
+  - php --ri mongodb || pecl install -f mongodb
   - travis_retry composer install --no-interaction
 
 script:
