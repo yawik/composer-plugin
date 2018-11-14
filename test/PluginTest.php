@@ -24,6 +24,13 @@ use Prophecy\Prophecy\ObjectProphecy;
 use Yawik\Composer\AssetsInstaller;
 use Yawik\Composer\Plugin;
 
+/**
+ * Class        PluginTest
+ * @package     YawikTest\Composer
+ * @author      Anthonius Munthi <me@itstoni.com>
+ * @since       0.32.0
+ * @covers      \Yawik\Composer\Plugin
+ */
 class PluginTest extends TestCase
 {
     /**

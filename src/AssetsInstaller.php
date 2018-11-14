@@ -10,11 +10,16 @@
 
 namespace Yawik\Composer;
 
+use Core\Application;
+use Core\Asset\AssetProviderInterface;
+use Psr\Log\LoggerInterface;
+use Psr\Log\LogLevel;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Finder\Finder;
+use Zend\ModuleManager\ModuleManager;
 
 /**
  * Class AssetsInstaller
@@ -43,12 +48,28 @@ class AssetsInstaller
      */
     private $input;
 
+    /**
+     * @var LoggerInterface
+     */
+    private $logger;
+
     public function __construct(Filesystem $filesystem = null)
     {
         if (is_null($filesystem)) {
             $filesystem = new Filesystem();
         }
         $this->filesystem = $filesystem;
+    }
+
+    /**
+     * Set a logger to use
+     * @param LoggerInterface $logger
+     */
+    public function setLogger(LoggerInterface $logger)
+    {
+        $this->logger = $logger;
+
+        return;
     }
 
     public function setFilesystem(Filesystem $filesystem)
@@ -75,14 +96,6 @@ class AssetsInstaller
     }
 
     /**
-     * @return InputInterface
-     */
-    public function getInput()
-    {
-        return $this->input;
-    }
-
-    /**
      * @param InputInterface $input
      * @return AssetsInstaller
      */
@@ -103,11 +116,13 @@ class AssetsInstaller
      */
     public function install($modules, $expectedMethod = self::METHOD_RELATIVE_SYMLINK)
     {
-        $rows = [];
-        $exitCode = 0;
-        $copyUsed = false;
+        $publicDir      = $this->getModuleAssetDir();
+        $loadedModules  = $this->scanInstalledModules();
+        $modules        = array_merge($modules, $loadedModules);
+        $rows           = [];
+        $exitCode       = 0;
+        $copyUsed       = false;
 
-        $publicDir = $this->getModuleAssetDir();
         foreach ($modules as $name => $originDir) {
             $targetDir = $publicDir.DIRECTORY_SEPARATOR.$name;
             $message = $name;
@@ -151,7 +166,7 @@ class AssetsInstaller
             $publicPath = $assetDir.DIRECTORY_SEPARATOR.$name;
             if (is_dir($publicPath) || is_link($publicPath)) {
                 $this->filesystem->remove($publicPath);
-                $this->output->writeln("'Removed module assets: <info>${name}</info>'");
+                $this->log("Removed module assets: <info>${name}</info>");
             }
         }
     }
@@ -165,6 +180,8 @@ class AssetsInstaller
     {
         $io = new SymfonyStyle($this->input, $this->output);
         $io->newLine();
+
+        $io->section('Yawik Assets Installed!');
 
         if ($rows) {
             $io->table(array('', 'Module', 'Method / Error'), $rows);
@@ -198,6 +215,82 @@ class AssetsInstaller
         }
     }
 
+    private function scanInstalledModules()
+    {
+        // @codeCoverageIgnoreStart
+        if (!class_exists('Core\\Application')) {
+            include_once __DIR__.'/../../../autoload.php';
+        }
+        // @codeCoverageIgnoreEnd
+
+        /* @var ModuleManager $manager */
+        $app            = Application::init();
+        $manager        = $app->getServiceManager()->get('ModuleManager');
+        $modules        = $manager->getLoadedModules(true);
+        $moduleAssets   = array();
+
+        foreach ($modules as $module) {
+            try {
+                $className = get_class($module);
+                $moduleName = substr($className, 0, strpos($className, '\\'));
+                $r = new \ReflectionClass($className);
+                $file = $r->getFileName();
+                $dir = null;
+                if ($module instanceof AssetProviderInterface) {
+                    $dir = $module->getPublicDir();
+                } else {
+                    $testDir = substr($file, 0, stripos($file, 'src'.DIRECTORY_SEPARATOR.'Module.php')).'/public';
+                    if (is_dir($testDir)) {
+                        $dir = $testDir;
+                    }
+                }
+                if (is_dir($dir)) {
+                    $moduleAssets[$moduleName] = realpath($dir);
+                }
+            } catch (\Exception $e) {
+                $this->logError($e->getMessage());
+            }
+        }
+        return $moduleAssets;
+    }
+
+    public function log($message)
+    {
+        $this->doLog(LogLevel::INFO, $message, ['yawik.assets']);
+        if ($this->isCli()) {
+            $this->output->writeln($message);
+        }
+    }
+
+    /**
+     * @param $message
+     */
+    public function logDebug($message)
+    {
+        $this->doLog(LogLevel::DEBUG, $message);
+        if ($this->isCli()) {
+            $this->output->writeln($message, OutputInterface::VERBOSITY_VERY_VERBOSE);
+        }
+    }
+
+    /**
+     * @param $message
+     */
+    public function logError($message)
+    {
+        $this->doLog(LogLevel::ERROR, $message);
+        if ($this->isCli()) {
+            $this->output->writeln("<error>[error] {$message}</error>");
+        }
+    }
+
+    private function doLog($level, $message)
+    {
+        if ($this->logger instanceof LoggerInterface) {
+            $this->logger->log($level, $message, ['yawik.assets']);
+        }
+    }
+
     /**
      * Try to create absolute symlink.
      *
@@ -209,8 +302,10 @@ class AssetsInstaller
             $this->symlink($originDir, $targetDir);
             $method = self::METHOD_ABSOLUTE_SYMLINK;
         } catch (\Exception $e) {
+            // @codeCoverageIgnoreStart
             // fall back to copy
             $method = $this->hardCopy($originDir, $targetDir);
+            // @codeCoverageIgnoreEnd
         }
 
         return $method;
@@ -226,9 +321,12 @@ class AssetsInstaller
         try {
             $this->symlink($originDir, $targetDir, true);
             $method = self::METHOD_RELATIVE_SYMLINK;
-        } catch (\Exception $e) {
+        }
+        // @codeCoverageIgnoreStart
+        catch (\Exception $e) {
             $method = $this->absoluteSymlinkWithFallback($originDir, $targetDir);
         }
+        // @codeCoverageIgnoreEnd
 
         return $method;
     }
@@ -245,6 +343,7 @@ class AssetsInstaller
             $originDir = $this->filesystem->makePathRelative($originDir, realpath(dirname($targetDir)));
         }
         $this->filesystem->symlink($originDir, $targetDir);
+        // @codeCoverageIgnoreStart
         if (!file_exists($targetDir)) {
             throw new \Exception(
                 sprintf('Symbolic link "%s" was created but appears to be broken.', $targetDir),
@@ -252,6 +351,7 @@ class AssetsInstaller
                 null
             );
         }
+        // @codeCoverageIgnoreEnd
     }
 
     /**

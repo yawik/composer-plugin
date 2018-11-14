@@ -23,13 +23,18 @@
         "php": ">=5.6",
         "composer-plugin-api": "^1.1",
         "psr/log": "^1.0",
-        "symfony/finder": "^3.4 | ^4.1"
+        "symfony/finder": "^3.4 | ^4.1",
+        "yawik/demo-skin": ">=0.32@dev"
     },
     "require-dev": {
+        "yawik/core": ">=0.32@dev",
         "composer/composer": ">=1.0.0-alpha10",
         "phpunit/phpunit": "^5.7.23 || ^6.4.3",
         "squizlabs/php_codesniffer": "^2.6.2",
         "mikey179/vfsStream": "^1.6"
+    },
+    "replace": {
+        "yawik/composer-plugin": "self.version"
     },
     "autoload": {
         "psr-4": {
@@ -47,5 +52,10 @@
             "dev-develop": "0.33-dev"
         },
         "class": "Yawik\\Composer\\Plugin"
+    },
+    "config": {
+        "platform": {
+            "ext-mongo": "1.6.16"
+        }
     }
 }

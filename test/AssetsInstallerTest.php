@@ -14,9 +14,18 @@ namespace YawikTest\Composer;
 use Symfony\Component\Console\Input\StringInput;
 use Symfony\Component\Console\Output\StreamOutput;
 use Symfony\Component\Filesystem\Filesystem;
+use Symfony\Component\Finder\Finder;
 use Yawik\Composer\AssetsInstaller;
 use PHPUnit\Framework\TestCase;
 
+/**
+ * Class AssetsInstallerTest
+ *
+ * @package YawikTest\Composer
+ * @author  Anthonius Munthi <me@itstoni.com>
+ * @since   0.32.0
+ * @covers  \Yawik\Composer\AssetsInstaller
+ */
 class AssetsInstallerTest extends TestCase
 {
     /**
@@ -45,24 +54,7 @@ class AssetsInstallerTest extends TestCase
 
         $this->output       = $output;
         $this->target       = $target;
-
-        chdir(static::$tempDir);
     }
-
-    public static function setUpBeforeClass()
-    {
-        static::$cwd = getcwd();
-        static::$tempDir = sys_get_temp_dir().'/yawik/assets-install';
-        if (!is_dir($publicDir = static::$tempDir.'/public')) {
-            mkdir($publicDir, 0777, true);
-        }
-    }
-
-    public static function tearDownAfterClass()
-    {
-        chdir(static::$cwd);
-    }
-
 
     /**
      * Gets the display returned by the last execution of the command.
@@ -88,74 +80,109 @@ class AssetsInstallerTest extends TestCase
 
     public function testDirectoriesScan()
     {
-        $this->assertEquals(static::$tempDir.'/public/modules', $this->target->getModuleAssetDir());
+        $this->assertEquals(__DIR__.'/sandbox/public/modules', $this->target->getModuleAssetDir());
+    }
+
+    public function testInstall()
+    {
+        $fixtures = __DIR__.'/fixtures/public1';
+        $modules = [
+            'Foo' => $fixtures,
+            'Hello' => $fixtures,
+        ];
+
+        $moduleDir = $this->target->getModuleAssetDir();
+
+        $this->target->install($modules, AssetsInstaller::METHOD_ABSOLUTE_SYMLINK);
+        $display = $this->getDisplay(true);
+
+        $this->assertContains('absolute symlink', $display);
+        $this->assertDirectoryExists($moduleDir.'/Foo');
+        $this->assertDirectoryExists($moduleDir.'/Hello');
+        $this->assertFileExists($moduleDir.'/Foo/foo.js');
+        $this->assertFileExists($moduleDir.'/Hello/foo.js');
+        // should load loaded modules
+        $this->assertFileExists($moduleDir.'/Core/Gruntfile.js');
+    }
+
+    public function testUninstall()
+    {
+        $target     = $this->target;
+        $fixtures   = __DIR__.'/fixtures/public1';
+        $moduleDir  = $target->getModuleAssetDir();
+        $modules    = [
+            'Foo' => $fixtures,
+            'Hello' => $fixtures,
+        ];
+
+        $this->target->install($modules);
+        $this->target->uninstall(['Foo']);
+        $this->assertFileNotExists($moduleDir.'/Foo/foo.js');
+        $this->assertFileExists($moduleDir.'/Hello/foo.js');
+
+
+        $this->target->uninstall(['Hello']);
+        $this->assertFileNotExists($moduleDir.'/Hello/foo.js');
     }
 
     public function testSymlink()
     {
         $fixtures = __DIR__.'/fixtures/public1';
         $modules = [
-            'Core' => $fixtures,
-            'Applications' => $fixtures,
+            'Foo' => $fixtures,
+            'Hello' => $fixtures,
         ];
 
-        $target = static::$tempDir;
-        $moduleDir = $target.'/public/modules';
+        $moduleDir = $this->target->getModuleAssetDir();
 
-        $this->assertTrue(is_dir(static::$tempDir));
         $this->target->install($modules, AssetsInstaller::METHOD_ABSOLUTE_SYMLINK);
         $display = $this->getDisplay(true);
 
         $this->assertContains('absolute symlink', $display);
-        $this->assertDirectoryExists($moduleDir.'/Core');
-        $this->assertDirectoryExists($moduleDir.'/Applications');
-        $this->assertFileExists($moduleDir.'/Core/foo.js');
-        $this->assertFileExists($moduleDir.'/Applications/foo.js');
+        $this->assertTrue(is_link($moduleDir.'/Foo'));
+        $this->assertDirectoryExists($moduleDir.'/Foo');
+        $this->assertDirectoryExists($moduleDir.'/Hello');
+        $this->assertFileExists($moduleDir.'/Foo/foo.js');
+        $this->assertFileExists($moduleDir.'/Hello/foo.js');
     }
 
     public function testRelative()
     {
         $fixtures = __DIR__.'/fixtures/public1';
         $modules = [
-            'Core' => $fixtures,
-            'Applications' => $fixtures,
+            'Foo' => $fixtures,
+            'Hello' => $fixtures,
         ];
 
-        $target = static::$tempDir;
-        $moduleDir = $target.'/public/modules';
+        $moduleDir = $this->target->getModuleAssetDir();
 
-        chdir(static::$tempDir);
-        $this->assertTrue(is_dir(static::$tempDir));
         $this->target->install($modules, AssetsInstaller::METHOD_RELATIVE_SYMLINK);
         $display = $this->getDisplay(true);
 
         $this->assertRegExp('/relative symlink/', $display);
-        $this->assertDirectoryExists($moduleDir.'/Core');
-        $this->assertDirectoryExists($moduleDir.'/Applications');
-        $this->assertFileExists($moduleDir.'/Core/foo.js');
-        $this->assertFileExists($moduleDir.'/Applications/foo.js');
+        $this->assertDirectoryExists($moduleDir.'/Foo');
+        $this->assertDirectoryExists($moduleDir.'/Hello');
+        $this->assertFileExists($moduleDir.'/Foo/foo.js');
+        $this->assertFileExists($moduleDir.'/Hello/foo.js');
     }
 
     public function testCopy()
     {
         $fixtures = __DIR__.'/fixtures/public1';
         $modules = [
-            'Core' => $fixtures,
-            'Applications' => $fixtures,
+            'Foo' => $fixtures,
+            'Hello' => $fixtures,
         ];
 
-        $target = static::$tempDir;
-        $moduleDir = $target.'/public/modules';
+        $moduleDir = $this->target->getModuleAssetDir();
 
-        chdir(static::$tempDir);
-        $this->assertTrue(is_dir(static::$tempDir));
         $this->target->install($modules, AssetsInstaller::METHOD_COPY);
         $display = $this->getDisplay(true);
 
         $this->assertContains('[NOTE] Some assets were installed via copy', $display);
-        $this->assertDirectoryExists($moduleDir.'/Core');
-        $this->assertDirectoryExists($moduleDir.'/Applications');
-        $this->assertFileExists($moduleDir.'/Core/foo.js');
-        $this->assertFileExists($moduleDir.'/Applications/foo.js');
+        $this->assertDirectoryExists($moduleDir.'/Foo');
+        $this->assertDirectoryExists($moduleDir.'/Hello');
+        $this->assertFileExists($moduleDir.'/Foo/foo.js');
+        $this->assertFileExists($moduleDir.'/Hello/foo.js');
     }
 }
