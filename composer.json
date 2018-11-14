@@ -23,8 +23,7 @@
         "php": ">=5.6",
         "composer-plugin-api": "^1.1",
         "psr/log": "^1.0",
-        "symfony/finder": "^3.4 | ^4.1",
-        "yawik/demo-skin": ">=0.32@dev"
+        "symfony/finder": "^3.4 | ^4.1"
     },
     "require-dev": {
         "yawik/core": ">=0.32@dev",
