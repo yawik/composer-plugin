@@ -38,11 +38,6 @@ class AssetsInstaller
      */
     private $filesystem;
 
-    /**
-     * @var Application
-     */
-    private $application;
-
     public function __construct()
     {
         umask(0000);
@@ -69,7 +64,7 @@ class AssetsInstaller
     {
         $publicDir      = $this->getModuleAssetDir();
         $loadedModules  = $this->scanInstalledModules();
-        $modules        = array_merge($modules, $loadedModules);
+        $modules        = array_merge($loadedModules, $modules);
         $rows           = [];
         $exitCode       = 0;
         $copyUsed       = false;
