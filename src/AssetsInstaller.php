@@ -55,7 +55,6 @@ class AssetsInstaller
 
         $this->input       = new StringInput('');
         $this->output      = new ConsoleOutput($this->input);
-        $this->application = Application::init();
     }
 
     public function setFilesystem(Filesystem $filesystem)
@@ -176,7 +175,7 @@ class AssetsInstaller
     private function scanInstalledModules()
     {
         /* @var ModuleManager $manager */
-        $app            = $this->application;
+        $app            = Application::init();
         $manager        = $app->getServiceManager()->get('ModuleManager');
         $modules        = $manager->getLoadedModules(true);
         $moduleAssets   = array();
