@@ -16,6 +16,7 @@ use Core\Options\ModuleOptions;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Output\ConsoleOutput;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
@@ -94,6 +95,9 @@ class AssetsInstaller
      */
     public function getOutput()
     {
+        if (is_null($this->output)) {
+            $this->output = new ConsoleOutput();
+        }
         return $this->output;
     }
 
