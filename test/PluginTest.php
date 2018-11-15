@@ -127,6 +127,7 @@ class PluginTest extends TestCase
         ])
             ->shouldBeCalled()
         ;
+        $assetsInstaller->fixDirPermissions()->shouldBeCalled();
 
         $plugin = new Plugin($this->filesystem);
         $plugin->setAssetsInstaller($assetsInstaller->reveal());
@@ -158,6 +159,7 @@ class PluginTest extends TestCase
         ])
             ->shouldBeCalled()
         ;
+        $assetsInstaller->fixDirPermissions()->shouldBeCalled();
 
         $plugin = new Plugin();
         $plugin->setAssetsInstaller($assetsInstaller->reveal());
@@ -189,6 +191,7 @@ class PluginTest extends TestCase
         ])
             ->shouldBeCalled()
         ;
+        $assetsInstaller->fixDirPermissions()->shouldBeCalled();
 
 
         $plugin = new Plugin();
@@ -219,6 +222,7 @@ class PluginTest extends TestCase
         $assetsInstaller->install()
             ->shouldNotBeCalled()
         ;
+        $assetsInstaller->fixDirPermissions()->shouldBeCalled();
 
         $plugin = new Plugin();
         $plugin->setAssetsInstaller($assetsInstaller->reveal());

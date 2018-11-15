@@ -12,6 +12,7 @@ namespace Yawik\Composer;
 
 use Core\Application;
 use Core\Asset\AssetProviderInterface;
+use Core\Options\ModuleOptions;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Symfony\Component\Console\Input\InputInterface;
@@ -53,12 +54,28 @@ class AssetsInstaller
      */
     private $logger;
 
-    public function __construct(Filesystem $filesystem = null)
+    /**
+     * The root dir of Yawik application
+     * @var string
+     */
+    private $rootDir;
+
+    /**
+     * @var Application
+     */
+    private $application;
+
+    public function __construct()
     {
-        if (is_null($filesystem)) {
-            $filesystem = new Filesystem();
+        umask(0000);
+        $this->filesystem = new Filesystem();
+        // @codeCoverageIgnoreStart
+        if (!class_exists('Core\\Application')) {
+            include_once __DIR__.'/../../../autoload.php';
         }
-        $this->filesystem = $filesystem;
+        // @codeCoverageIgnoreEnd
+
+        $this->application = Application::init();
     }
 
     /**
@@ -171,9 +188,80 @@ class AssetsInstaller
         }
     }
 
+    /**
+     *
+     */
+    public function fixDirPermissions()
+    {
+        /* @var ModuleOptions $options */
+        $app        = $this->application;
+        $options    = $app->getServiceManager()->get('Core/Options');
+        $filesystem = $this->filesystem;
+
+        $logDir     = $options->getLogDir();
+        $cacheDir   = $options->getCacheDir();
+        $configDir  = realpath(Application::getConfigDir());
+
+        if (!is_dir($options->getLogDir())) {
+            $filesystem->mkdir($logDir, 0777);
+        }
+
+        if (!is_dir($cacheDir)) {
+            $filesystem->mkdir($cacheDir, 0777);
+        }
+
+        $filesystem->chmod($cacheDir, 0777);
+        $filesystem->chmod($logDir, 0777);
+        $filesystem->chmod($logDir.'/tracy', 0777);
+        $filesystem->chmod($configDir.'/autoload', 0777);
+    }
+
+    public function getPublicDir()
+    {
+        return $this->getRootDir().'/public';
+    }
+
     public function getModuleAssetDir()
     {
         return $this->getPublicDir().'/modules';
+    }
+
+    /**
+     * @return string
+     */
+    public function getRootDir()
+    {
+        return dirname(realpath(Application::getConfigDir()));
+    }
+
+    /**
+     * @param $message
+     */
+    public function logDebug($message)
+    {
+        $this->doLog(LogLevel::DEBUG, $message);
+        if ($this->isCli()) {
+            $this->output->writeln($message, OutputInterface::VERBOSITY_VERY_VERBOSE);
+        }
+    }
+
+    /**
+     * @param $message
+     */
+    public function logError($message)
+    {
+        $this->doLog(LogLevel::ERROR, $message);
+        if ($this->isCli()) {
+            $this->output->writeln("<error>[error] {$message}</error>");
+        }
+    }
+
+    public function log($message)
+    {
+        $this->doLog(LogLevel::INFO, $message, ['yawik.assets']);
+        if ($this->isCli()) {
+            $this->output->writeln($message);
+        }
     }
 
     private function renderInstallOutput($copyUsed, $rows, $exitCode)
@@ -202,29 +290,10 @@ class AssetsInstaller
         return php_sapi_name() === 'cli';
     }
 
-    private function getPublicDir()
-    {
-        $dirs = [
-            getcwd().'/test/sandbox/public',
-            getcwd().'/public'
-        ];
-        foreach ($dirs as $dir) {
-            if (is_dir($dir)) {
-                return $dir;
-            }
-        }
-    }
-
     private function scanInstalledModules()
     {
-        // @codeCoverageIgnoreStart
-        if (!class_exists('Core\\Application')) {
-            include_once __DIR__.'/../../../autoload.php';
-        }
-        // @codeCoverageIgnoreEnd
-
         /* @var ModuleManager $manager */
-        $app            = Application::init();
+        $app            = $this->application;
         $manager        = $app->getServiceManager()->get('ModuleManager');
         $modules        = $manager->getLoadedModules(true);
         $moduleAssets   = array();
@@ -252,36 +321,6 @@ class AssetsInstaller
             }
         }
         return $moduleAssets;
-    }
-
-    public function log($message)
-    {
-        $this->doLog(LogLevel::INFO, $message, ['yawik.assets']);
-        if ($this->isCli()) {
-            $this->output->writeln($message);
-        }
-    }
-
-    /**
-     * @param $message
-     */
-    public function logDebug($message)
-    {
-        $this->doLog(LogLevel::DEBUG, $message);
-        if ($this->isCli()) {
-            $this->output->writeln($message, OutputInterface::VERBOSITY_VERY_VERBOSE);
-        }
-    }
-
-    /**
-     * @param $message
-     */
-    public function logError($message)
-    {
-        $this->doLog(LogLevel::ERROR, $message);
-        if ($this->isCli()) {
-            $this->output->writeln("<error>[error] {$message}</error>");
-        }
     }
 
     private function doLog($level, $message)

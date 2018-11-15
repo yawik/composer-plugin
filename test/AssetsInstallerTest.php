@@ -185,4 +185,26 @@ class AssetsInstallerTest extends TestCase
         $this->assertFileExists($moduleDir.'/Foo/foo.js');
         $this->assertFileExists($moduleDir.'/Hello/foo.js');
     }
+
+    public function testFixDirPermissions()
+    {
+        $rootDir        = __DIR__.'/sandbox';
+
+        $filesystem     = $this->getMockBuilder(Filesystem::class)
+            //->setMethods(['mkdir','chmod'])
+            ->getMock()
+        ;
+        $filesystem->expects($this->exactly(4))
+            ->method('chmod')
+            ->withConsecutive(
+                [$rootDir.'/var/cache',0777],
+                [$rootDir.'/var/log',0777],
+                [$rootDir.'/var/log/tracy',0777],
+                [$rootDir.'/config/autoload',0777]
+            )
+        ;
+
+        $this->target->setFilesystem($filesystem);
+        $this->target->fixDirPermissions();
+    }
 }

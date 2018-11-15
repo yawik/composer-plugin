@@ -108,6 +108,8 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         if (count($this->uninstalled) > 0) {
             $this->getAssetsInstaller()->uninstall($this->uninstalled);
         }
+
+        $this->getAssetsInstaller()->fixDirPermissions();
     }
 
     public function onPostPackageInstall(PackageEvent $event)
