@@ -217,6 +217,11 @@ class AssetsInstaller
                 $this->logError($exception->getMessage());
             }
         }
+
+        if (!is_file($logFile = $logDir.'/yawik.log')) {
+            touch($logFile);
+        }
+        $this->chmod($logFile, 0666);
     }
 
     public function getPublicDir()
@@ -258,11 +263,15 @@ class AssetsInstaller
         $this->doLog(LogLevel::INFO, $message);
     }
 
-    private function chmod($dir)
+    private function chmod($dir, $mode = 0777)
     {
         if (is_dir($dir) || is_file($dir)) {
-            $this->filesystem->chmod($dir, 0777);
-            $this->log(sprintf('<info>chmod: <comment>%s</comment> with 0777</info>', $dir));
+            $this->filesystem->chmod($dir, $mode);
+            $this->log(sprintf(
+                '<info>chmod: <comment>%s</comment> with %s</info>',
+                $dir,
+                decoct(fileperms($dir) & 0777)
+            ));
         }
     }
 

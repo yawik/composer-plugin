@@ -209,14 +209,14 @@ class AssetsInstallerTest extends TestCase
             //->setMethods(['mkdir','chmod'])
             ->getMock()
         ;
-        $filesystem->expects($this->exactly(4))
+        $filesystem->expects($this->exactly(5))
             ->method('chmod')
             ->withConsecutive(
                 [$rootDir.'/config/autoload',0777],
                 [$rootDir.'/var/cache',0777],
                 [$rootDir.'/var/log',0777],
-                [$rootDir.'/var/log/tracy',0777]
-
+                [$rootDir.'/var/log/tracy',0777],
+                [$rootDir.'/var/log/yawik.log',0666]
             )
         ;
 
@@ -235,6 +235,10 @@ class AssetsInstallerTest extends TestCase
         ;
         $logger
             ->log(LogLevel::INFO, Argument::containingString('var/log/tracy'))
+            ->shouldBeCalled()
+        ;
+        $logger
+            ->log(LogLevel::INFO, Argument::containingString('var/log/yawik.log'))
             ->shouldBeCalled()
         ;
 
