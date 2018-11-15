@@ -11,7 +11,6 @@
 
 namespace YawikTest\Composer;
 
-use Core\Application;
 use Prophecy\Argument;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
@@ -19,7 +18,6 @@ use Symfony\Component\Console\Input\StringInput;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Output\StreamOutput;
 use Symfony\Component\Filesystem\Filesystem;
-use Symfony\Component\Finder\Finder;
 use Yawik\Composer\AssetsInstaller;
 use PHPUnit\Framework\TestCase;
 
@@ -53,13 +51,6 @@ class AssetsInstallerTest extends TestCase
     {
         $output             = new StreamOutput(fopen('php://memory', 'w'));
         $input              = new StringInput('some input');
-        $sandboxConfigDir   = __DIR__.'/sandbox/config';
-        $defConfig          = file_get_contents($sandboxConfigDir.'/config.php.dist');
-
-        if (!is_file($configFile = $sandboxConfigDir.'/config.php')) {
-            touch($configFile);
-        }
-        file_put_contents($configFile, $defConfig, LOCK_EX);
 
         // setup the target
         $target = new AssetsInstaller();
