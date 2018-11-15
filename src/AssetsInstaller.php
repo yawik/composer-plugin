@@ -21,7 +21,6 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Finder\Finder;
 use Zend\ModuleManager\ModuleManager;
-use Zend\View\Helper\Asset;
 
 /**
  * Class AssetsInstaller
@@ -54,12 +53,6 @@ class AssetsInstaller
      * @var LoggerInterface
      */
     private $logger;
-
-    /**
-     * The root dir of Yawik application
-     * @var string
-     */
-    private $rootDir;
 
     /**
      * @var Application
@@ -212,7 +205,7 @@ class AssetsInstaller
         foreach ($dirs as $dir) {
             try {
                 if (!is_dir($dir)) {
-                    $this->mkdir($dir, 0777, true);
+                    $this->mkdir($dir);
                 }
                 $this->chmod($dir);
             } catch (\Exception $exception) {
@@ -336,7 +329,7 @@ class AssetsInstaller
     private function doLog($level, $message)
     {
         $message = str_replace(getcwd().DIRECTORY_SEPARATOR, '', $message);
-        if ($this->logger instanceof LoggerInterface) {
+        if (is_object($this->logger)) {
             $this->logger->log($level, $message);
         }
         if ($this->isCli()) {
