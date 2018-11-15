@@ -24,6 +24,7 @@ use PHPUnit\Framework\TestCase;
 use Prophecy\Prophecy\ObjectProphecy;
 use Symfony\Component\Console\Output\OutputInterface;
 use Yawik\Composer\AssetsInstaller;
+use Yawik\Composer\PermissionsFixer;
 use Yawik\Composer\Plugin;
 
 /**
@@ -202,10 +203,13 @@ class PluginTest extends TestCase
         ])
             ->shouldBeCalled()
         ;
-        $assetsInstaller->fixDirPermissions()->shouldBeCalled();
-
+        $fixer = $this->prophesize(PermissionsFixer::class);
+        $fixer->fix()
+            ->shouldBeCalled()
+        ;
         $plugin = new Plugin($this->filesystem);
         $plugin->setAssetsInstaller($assetsInstaller->reveal());
+        $plugin->setPermissionsFixer($fixer->reveal());
         $plugin->activate($this->composer->reveal(), $this->output->reveal());
         $plugin->onPostPackageInstall($event->reveal());
         $plugin->onPostAutoloadDump();
@@ -234,10 +238,14 @@ class PluginTest extends TestCase
         ])
             ->shouldBeCalled()
         ;
-        $assetsInstaller->fixDirPermissions()->shouldBeCalled();
+        $fixer = $this->prophesize(PermissionsFixer::class);
+        $fixer->fix()
+            ->shouldBeCalled()
+        ;
 
         $plugin = new Plugin();
         $plugin->setAssetsInstaller($assetsInstaller->reveal());
+        $plugin->setPermissionsFixer($fixer->reveal());
         $plugin->activate($this->composer->reveal(), $this->output->reveal());
         $plugin->onPostPackageUpdate($event->reveal());
         $plugin->onPostAutoloadDump();
@@ -266,11 +274,15 @@ class PluginTest extends TestCase
         ])
             ->shouldBeCalled()
         ;
-        $assetsInstaller->fixDirPermissions()->shouldBeCalled();
+        $fixer = $this->prophesize(PermissionsFixer::class);
+        $fixer->fix()
+            ->shouldBeCalled()
+        ;
 
 
         $plugin = new Plugin();
         $plugin->setAssetsInstaller($assetsInstaller->reveal());
+        $plugin->setPermissionsFixer($fixer->reveal());
         $plugin->activate($this->composer->reveal(), $this->output->reveal());
         $plugin->onPrePackageUninstall($event->reveal());
         $plugin->onPostAutoloadDump();
@@ -297,10 +309,14 @@ class PluginTest extends TestCase
         $assetsInstaller->install([])
             ->shouldBeCalled()
         ;
-        $assetsInstaller->fixDirPermissions()->shouldBeCalled();
+        $fixer = $this->prophesize(PermissionsFixer::class);
+        $fixer->fix()
+            ->shouldBeCalled()
+        ;
 
         $plugin = new Plugin();
         $plugin->setAssetsInstaller($assetsInstaller->reveal());
+        $plugin->setPermissionsFixer($fixer->reveal());
         $plugin->activate($this->composer->reveal(), $this->output->reveal());
         $plugin->onPostPackageInstall($event->reveal());
         $plugin->onPostAutoloadDump();

@@ -12,15 +12,9 @@ namespace Yawik\Composer;
 
 use Core\Application;
 use Core\Asset\AssetProviderInterface;
-use Core\Options\ModuleOptions;
-use Psr\Log\LoggerInterface;
-use Psr\Log\LogLevel;
-use Symfony\Component\Console\Input\ArgvInput;
-use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\StringInput;
 use Symfony\Component\Console\Output\ConsoleOutput;
 use Symfony\Component\Filesystem\Filesystem;
-use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Finder\Finder;
 use Zend\ModuleManager\ModuleManager;
@@ -33,6 +27,8 @@ use Zend\ModuleManager\ModuleManager;
  */
 class AssetsInstaller
 {
+    use LogTrait;
+
     const METHOD_COPY               = 'copy';
     const METHOD_ABSOLUTE_SYMLINK   = 'absolute symlink';
     const METHOD_RELATIVE_SYMLINK   = 'relative symlink';
@@ -41,21 +37,6 @@ class AssetsInstaller
      * @var Filesystem
      */
     private $filesystem;
-
-    /**
-     * @var OutputInterface
-     */
-    private $output;
-
-    /**
-     * @var InputInterface
-     */
-    private $input;
-
-    /**
-     * @var LoggerInterface
-     */
-    private $logger;
 
     /**
      * @var Application
@@ -77,49 +58,9 @@ class AssetsInstaller
         $this->application = Application::init();
     }
 
-    /**
-     * Set a logger to use
-     * @param LoggerInterface $logger
-     * @return AssetsInstaller
-     */
-    public function setLogger(LoggerInterface $logger)
-    {
-        $this->logger = $logger;
-
-        return $this;
-    }
-
     public function setFilesystem(Filesystem $filesystem)
     {
         $this->filesystem = $filesystem;
-    }
-
-    /**
-     * @return OutputInterface
-     */
-    public function getOutput()
-    {
-        return $this->output;
-    }
-
-    /**
-     * @param OutputInterface $output
-     * @return AssetsInstaller
-     */
-    public function setOutput($output)
-    {
-        $this->output = $output;
-        return $this;
-    }
-
-    /**
-     * @param InputInterface $input
-     * @return AssetsInstaller
-     */
-    public function setInput($input)
-    {
-        $this->input = $input;
-        return $this;
     }
 
     /**
@@ -176,6 +117,11 @@ class AssetsInstaller
         }
     }
 
+    /**
+     * Uninstall modules
+     *
+     * @param array $modules A list of modules to uninstall
+     */
     public function uninstall($modules)
     {
         $assetDir = $this->getModuleAssetDir();
@@ -186,42 +132,6 @@ class AssetsInstaller
                 $this->log("Removed module assets: <info>${name}</info>");
             }
         }
-    }
-
-    /**
-     *
-     */
-    public function fixDirPermissions()
-    {
-        /* @var ModuleOptions $options */
-        $app        = $this->application;
-        $options    = $app->getServiceManager()->get('Core/Options');
-
-        $logDir     = $options->getLogDir();
-        $cacheDir   = $options->getCacheDir();
-        $configDir  = realpath(Application::getConfigDir());
-
-        $dirs = [
-            $configDir.'/autoload',
-            $cacheDir,
-            $logDir,
-            $logDir.'/tracy',
-        ];
-        foreach ($dirs as $dir) {
-            try {
-                if (!is_dir($dir)) {
-                    $this->mkdir($dir);
-                }
-                $this->chmod($dir);
-            } catch (\Exception $exception) {
-                $this->logError($exception->getMessage());
-            }
-        }
-
-        if (!is_file($logFile = $logDir.'/yawik.log')) {
-            touch($logFile);
-        }
-        $this->chmod($logFile, 0666);
     }
 
     public function getPublicDir()
@@ -240,45 +150,6 @@ class AssetsInstaller
     public function getRootDir()
     {
         return dirname(realpath(Application::getConfigDir()));
-    }
-
-    /**
-     * @param $message
-     */
-    public function logDebug($message)
-    {
-        $this->doLog(LogLevel::DEBUG, $message);
-    }
-
-    /**
-     * @param $message
-     */
-    public function logError($message)
-    {
-        $this->doLog(LogLevel::ERROR, $message);
-    }
-
-    public function log($message)
-    {
-        $this->doLog(LogLevel::INFO, $message);
-    }
-
-    private function chmod($dir, $mode = 0777)
-    {
-        if (is_dir($dir) || is_file($dir)) {
-            $this->filesystem->chmod($dir, $mode);
-            $this->log(sprintf(
-                '<info>chmod: <comment>%s</comment> with %s</info>',
-                $dir,
-                decoct(fileperms($dir) & 0777)
-            ));
-        }
-    }
-
-    private function mkdir($dir)
-    {
-        $this->filesystem->mkdir($dir, 0777);
-        $this->log(sprintf('<info>mkdir: </info><comment>%s</comment>', $dir));
     }
 
     public function renderInstallOutput($copyUsed, $rows, $exitCode)
@@ -300,11 +171,6 @@ class AssetsInstaller
             }
             $io->success($rows ? 'All assets were successfully installed.' : 'No assets were provided by any bundle.');
         }
-    }
-
-    public function isCli()
-    {
-        return php_sapi_name() === 'cli';
     }
 
     private function scanInstalledModules()
@@ -338,39 +204,6 @@ class AssetsInstaller
             } // @codeCoverageIgnore
         }
         return $moduleAssets;
-    }
-
-    private function doLog($level, $message)
-    {
-        $message = str_replace(getcwd().DIRECTORY_SEPARATOR, '', $message);
-        if (is_object($this->logger)) {
-            $this->logger->log($level, $message);
-        }
-        if ($this->isCli()) {
-            switch ($level) {
-                case LogLevel::DEBUG:
-                    $outputLevel = OutputInterface::VERBOSITY_VERY_VERBOSE;
-                    break;
-                case LogLevel::ERROR:
-                    $message = '<error>'.$message.'</error>';
-                    $outputLevel = OutputInterface::OUTPUT_NORMAL;
-                    break;
-                case LogLevel::INFO:
-                default:
-                    $outputLevel = OutputInterface::OUTPUT_NORMAL;
-                    break;
-            }
-            $this->doWrite($message, $outputLevel);
-        }
-    }
-
-    private function doWrite($message, $outputLevel = 0)
-    {
-        $message = sprintf(
-            '<info>[yawik]</info> %s',
-            $message
-        );
-        $this->output->writeln($message, $outputLevel);
     }
 
     /**

@@ -65,6 +65,11 @@ class Plugin implements PluginInterface, EventSubscriberInterface
      */
     private $assetsInstaller;
 
+    /**
+     * @var PermissionsFixer
+     */
+    private $permissionsFixer;
+
     public function __construct($projectPath=null)
     {
         $this->projectPath = is_null($projectPath) ? getcwd():$projectPath;
@@ -83,21 +88,44 @@ class Plugin implements PluginInterface, EventSubscriberInterface
      */
     public function setAssetsInstaller(AssetsInstaller $installer)
     {
-        $output  = $this->output;
-        if (!is_null($output)) {
-            $level   = OutputInterface::VERBOSITY_NORMAL;
-
-            if ($output->isVeryVerbose() || $output->isDebug()) {
-                $level = OutputInterface::VERBOSITY_VERY_VERBOSE;
-            } elseif ($output->isVerbose()) {
-                $level = OutputInterface::VERBOSITY_VERBOSE;
-            }
-
-            $installerOutput = $installer->getOutput();
-            $installerOutput->setVerbosity($level);
-            $installerOutput->setDecorated($output->isDecorated());
+        if (!is_null($this->output)) {
+            $installer->setOutputFromComposerIO($this->output);
         }
         $this->assetsInstaller = $installer;
+    }
+
+    /**
+     * @return AssetsInstaller
+     */
+    public function getAssetsInstaller()
+    {
+        if (!is_object($this->assetsInstaller)) {
+            $assetInstaller = new AssetsInstaller();
+            $this->setAssetsInstaller($assetInstaller);
+        }
+
+        return $this->assetsInstaller;
+    }
+
+    /**
+     * @return PermissionsFixer
+     */
+    public function getPermissionsFixer()
+    {
+        return $this->permissionsFixer;
+    }
+
+    /**
+     * @param PermissionsFixer $permissionsFixer
+     * @return Plugin
+     */
+    public function setPermissionsFixer($permissionsFixer)
+    {
+        if (!is_null($this->output)) {
+            $permissionsFixer->setOutputFromComposerIO($this->output);
+        }
+        $this->permissionsFixer = $permissionsFixer;
+        return $this;
     }
 
     /**
@@ -122,7 +150,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         } else {
             $this->getAssetsInstaller()->install($this->installed);
         }
-        $this->getAssetsInstaller()->fixDirPermissions();
+        $this->getPermissionsFixer()->fix();
     }
 
     public function onPostPackageInstall(PackageEvent $event)
@@ -141,19 +169,6 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     {
         $package = $event->getOperation()->getPackage();
         $this->scanModules($package, static::SCAN_TYPE_REMOVE);
-    }
-
-    /**
-     * @return AssetsInstaller
-     */
-    public function getAssetsInstaller()
-    {
-        if (!is_object($this->assetsInstaller)) {
-            $assetInstaller = new AssetsInstaller();
-            $this->setAssetsInstaller($assetInstaller);
-        }
-
-        return $this->assetsInstaller;
     }
 
     private function scanModules(PackageInterface $package, $scanType='install')
