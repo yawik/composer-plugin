@@ -21,6 +21,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Finder\Finder;
 use Zend\ModuleManager\ModuleManager;
+use Zend\View\Helper\Asset;
 
 /**
  * Class AssetsInstaller
@@ -81,12 +82,13 @@ class AssetsInstaller
     /**
      * Set a logger to use
      * @param LoggerInterface $logger
+     * @return AssetsInstaller
      */
     public function setLogger(LoggerInterface $logger)
     {
         $this->logger = $logger;
 
-        return;
+        return $this;
     }
 
     public function setFilesystem(Filesystem $filesystem)
@@ -164,10 +166,10 @@ class AssetsInstaller
                 } else {
                     $rows[] = array(sprintf('<fg=yellow;options=bold>%s</>', '\\' === DIRECTORY_SEPARATOR ? 'WARNING' : '!'), $message, $method);
                 }
-            } catch (\Exception $e) {
+            } catch (\Exception $e) { // @codeCoverageIgnoreStart
                 $exitCode = 1;
                 $rows[] = array(sprintf('<fg=red;options=bold>%s</>', '\\' === DIRECTORY_SEPARATOR ? 'ERROR' : "\xE2\x9C\x98" /* HEAVY BALLOT X (U+2718) */), $message, $e->getMessage());
-            }
+            }// @codeCoverageIgnoreEnd
         }
 
         // render this output only on cli environment
@@ -210,10 +212,10 @@ class AssetsInstaller
             $filesystem->mkdir($cacheDir, 0777);
         }
 
-        $filesystem->chmod($cacheDir, 0777);
-        $filesystem->chmod($logDir, 0777);
-        $filesystem->chmod($logDir.'/tracy', 0777);
-        $filesystem->chmod($configDir.'/autoload', 0777);
+        $this->chmod($cacheDir);
+        $this->chmod($logDir);
+        $this->chmod($logDir.'/tracy');
+        $this->chmod($configDir.'/autoload');
     }
 
     public function getPublicDir()
@@ -240,9 +242,6 @@ class AssetsInstaller
     public function logDebug($message)
     {
         $this->doLog(LogLevel::DEBUG, $message);
-        if ($this->isCli()) {
-            $this->output->writeln($message, OutputInterface::VERBOSITY_VERY_VERBOSE);
-        }
     }
 
     /**
@@ -251,20 +250,22 @@ class AssetsInstaller
     public function logError($message)
     {
         $this->doLog(LogLevel::ERROR, $message);
-        if ($this->isCli()) {
-            $this->output->writeln("<error>[error] {$message}</error>");
-        }
     }
 
     public function log($message)
     {
-        $this->doLog(LogLevel::INFO, $message, ['yawik.assets']);
-        if ($this->isCli()) {
-            $this->output->writeln($message);
+        $this->doLog(LogLevel::INFO, $message);
+    }
+
+    private function chmod($dir)
+    {
+        if (is_dir($dir) || is_file($dir)) {
+            $this->filesystem->chmod($dir, 0777);
+            $this->logDebug(sprintf('[yawik] <info>%s</info> with <info>0777</info>', $dir));
         }
     }
 
-    private function renderInstallOutput($copyUsed, $rows, $exitCode)
+    public function renderInstallOutput($copyUsed, $rows, $exitCode)
     {
         $io = new SymfonyStyle($this->input, $this->output);
         $io->newLine();
@@ -285,7 +286,7 @@ class AssetsInstaller
         }
     }
 
-    private function isCli()
+    public function isCli()
     {
         return php_sapi_name() === 'cli';
     }
@@ -316,9 +317,9 @@ class AssetsInstaller
                 if (is_dir($dir)) {
                     $moduleAssets[$moduleName] = realpath($dir);
                 }
-            } catch (\Exception $e) {
-                $this->logError($e->getMessage());
-            }
+            } catch (\Exception $e) { // @codeCoverageIgnore
+                $this->logError($e->getMessage()); // @codeCoverageIgnore
+            } // @codeCoverageIgnore
         }
         return $moduleAssets;
     }
@@ -326,8 +327,29 @@ class AssetsInstaller
     private function doLog($level, $message)
     {
         if ($this->logger instanceof LoggerInterface) {
-            $this->logger->log($level, $message, ['yawik.assets']);
+            $message = str_replace(getcwd().DIRECTORY_SEPARATOR, '', $message);
+            $this->logger->log($level, $message);
         }
+        if ($this->isCli()) {
+            $outputLevel = OutputInterface::VERBOSITY_NORMAL;
+            switch ($level) {
+                case LogLevel::DEBUG:
+                    $outputLevel = OutputInterface::VERBOSITY_VERY_VERBOSE;
+                    break;
+                case LogLevel::ERROR:
+                    $message = '<error>'.$message.'</error>';
+                    // no break
+                case LogLevel::INFO:
+                    $outputLevel = OutputInterface::OUTPUT_NORMAL;
+                    break;
+            }
+            $this->doWrite($message, $outputLevel);
+        }
+    }
+
+    private function doWrite($message, $outputLevel = 0)
+    {
+        $this->output->writeln($message, $outputLevel);
     }
 
     /**
@@ -340,12 +362,10 @@ class AssetsInstaller
         try {
             $this->symlink($originDir, $targetDir);
             $method = self::METHOD_ABSOLUTE_SYMLINK;
-        } catch (\Exception $e) {
-            // @codeCoverageIgnoreStart
+        } catch (\Exception $e) { // @codeCoverageIgnore
             // fall back to copy
-            $method = $this->hardCopy($originDir, $targetDir);
-            // @codeCoverageIgnoreEnd
-        }
+            $method = $this->hardCopy($originDir, $targetDir); // @codeCoverageIgnore
+        } // @codeCoverageIgnore
 
         return $method;
     }
