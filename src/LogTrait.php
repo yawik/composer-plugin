@@ -14,6 +14,7 @@ namespace Yawik\Composer;
 use Composer\IO\IOInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
+use Symfony\Component\Console\Output\ConsoleOutput;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Input\InputInterface;
 
@@ -66,6 +67,9 @@ trait LogTrait
      */
     public function getOutput()
     {
+        if (is_null($this->output)) {
+            $this->output = new ConsoleOutput();
+        }
         return $this->output;
     }
 

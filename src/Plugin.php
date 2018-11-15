@@ -100,8 +100,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     public function getAssetsInstaller()
     {
         if (!is_object($this->assetsInstaller)) {
-            $assetInstaller = new AssetsInstaller();
-            $this->setAssetsInstaller($assetInstaller);
+            $this->setAssetsInstaller(new AssetsInstaller());
         }
 
         return $this->assetsInstaller;
@@ -112,6 +111,9 @@ class Plugin implements PluginInterface, EventSubscriberInterface
      */
     public function getPermissionsFixer()
     {
+        if (is_null($this->permissionsFixer)) {
+            $this->setPermissionsFixer(new PermissionsFixer());
+        }
         return $this->permissionsFixer;
     }
 
