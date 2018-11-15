@@ -170,7 +170,7 @@ class PluginTest extends TestCase
                 false
             ],
             [
-                OutputInterface::OUTPUT_NORMAL,
+                0,
                 false,
                 false,
                 false,
@@ -294,8 +294,8 @@ class PluginTest extends TestCase
             ])
         ;
         $assetsInstaller = $this->prophesize(AssetsInstaller::class);
-        $assetsInstaller->install()
-            ->shouldNotBeCalled()
+        $assetsInstaller->install([])
+            ->shouldBeCalled()
         ;
         $assetsInstaller->fixDirPermissions()->shouldBeCalled();
 

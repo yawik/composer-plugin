@@ -49,8 +49,8 @@ class AssetsInstallerTest extends TestCase
 
     public function setUp()
     {
-        $output             = new StreamOutput(fopen('php://memory', 'w'));
-        $input              = new StringInput('some input');
+        $output   = new StreamOutput(fopen('php://memory', 'w'));
+        $input    = new StringInput('some input');
 
         // setup the target
         $target = new AssetsInstaller();
