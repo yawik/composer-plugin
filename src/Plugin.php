@@ -84,8 +84,9 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     public function setAssetsInstaller(AssetsInstaller $installer)
     {
         $output  = $this->output;
-        $level   = 0;
         if (!is_null($output)) {
+            $level   = OutputInterface::VERBOSITY_NORMAL;
+
             if ($output->isVeryVerbose() || $output->isDebug()) {
                 $level = OutputInterface::VERBOSITY_VERY_VERBOSE;
             } elseif ($output->isVerbose()) {

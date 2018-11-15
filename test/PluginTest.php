@@ -170,7 +170,7 @@ class PluginTest extends TestCase
                 false
             ],
             [
-                0,
+                OutputInterface::VERBOSITY_NORMAL,
                 false,
                 false,
                 false,
