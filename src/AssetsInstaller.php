@@ -46,13 +46,7 @@ class AssetsInstaller
     public function __construct()
     {
         umask(0000);
-        $this->filesystem = new Filesystem();
-        // @codeCoverageIgnoreStart
-        if (!class_exists('Core\\Application')) {
-            include_once __DIR__.'/../../../autoload.php';
-        }
-        // @codeCoverageIgnoreEnd
-
+        $this->filesystem  = new Filesystem();
         $this->input       = new StringInput('');
         $this->output      = new ConsoleOutput($this->input);
     }
@@ -174,6 +168,12 @@ class AssetsInstaller
 
     private function scanInstalledModules()
     {
+        // @codeCoverageIgnoreStart
+        if (!class_exists('Core\\Application')) {
+            include_once __DIR__.'/../../../autoload.php';
+        }
+        // @codeCoverageIgnoreEnd
+
         /* @var ModuleManager $manager */
         $app            = Application::init();
         $manager        = $app->getServiceManager()->get('ModuleManager');
