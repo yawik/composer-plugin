@@ -14,6 +14,7 @@ use Composer\DependencyResolver\Operation\InstallOperation;
 use Composer\DependencyResolver\Operation\OperationInterface;
 use Composer\DependencyResolver\Operation\UninstallOperation;
 use Composer\DependencyResolver\Operation\UpdateOperation;
+use Composer\Installer;
 use Composer\Installer\InstallationManager;
 use Composer\Installer\PackageEvent;
 use Composer\IO\IOInterface;
@@ -21,6 +22,7 @@ use Composer\Package\PackageInterface;
 use org\bovigo\vfs\vfsStream;
 use PHPUnit\Framework\TestCase;
 use Prophecy\Prophecy\ObjectProphecy;
+use Symfony\Component\Console\Output\OutputInterface;
 use Yawik\Composer\AssetsInstaller;
 use Yawik\Composer\Plugin;
 
@@ -93,15 +95,88 @@ class PluginTest extends TestCase
         ], Plugin::getSubscribedEvents());
     }
 
-    public function testGetInstaller()
+    public function testSetInstaller()
     {
-        $plugin = new Plugin();
-        $this->assertInstanceOf(AssetsInstaller::class, $plugin->getAssetsInstaller());
-
         $plugin = new Plugin();
         $assetsInstaller = new AssetsInstaller();
         $plugin->setAssetsInstaller($assetsInstaller);
         $this->assertEquals($assetsInstaller, $plugin->getAssetsInstaller());
+    }
+
+    /**
+     * Verify verbose for installer output
+     * @param string $expect
+     * @param bool $verbose
+     * @param bool $debug
+     * @param bool $veryVerbose
+     * @param bool $decorated
+     * @dataProvider getTestInstaller
+     */
+    public function testGetInstaller(
+        $expectOutputLevel,
+        $verbose = false,
+        $debug = false,
+        $veryVerbose=false,
+        $decorated=false
+    ) {
+        $this->initializeMock();
+        $output     = $this->output;
+        $composer   = $this->composer;
+        $installerOutput    = $this->prophesize(OutputInterface::class);
+
+        $output->isVerbose()->willReturn($verbose);
+        $output->isDebug()->willReturn($debug);
+        $output->isVeryVerbose()->willReturn($veryVerbose);
+        $output->isDecorated()->willReturn($decorated);
+
+        $installerOutput->setVerbosity($expectOutputLevel)
+            ->shouldBeCalled()
+        ;
+        $installerOutput->setDecorated($decorated)
+            ->shouldBeCalled()
+        ;
+
+        $plugin = new Plugin();
+        $plugin->activate($composer->reveal(), $output->reveal());
+
+        $installer = new AssetsInstaller();
+        $installer->setOutput($installerOutput->reveal());
+        $plugin->setAssetsInstaller($installer);
+        $plugin->onPostPackageInstall($this->event->reveal());
+    }
+
+    public function getTestInstaller()
+    {
+        return[
+            [
+                OutputInterface::VERBOSITY_VERY_VERBOSE,
+                false,
+                false,
+                true,
+                true
+            ],
+            [
+                OutputInterface::VERBOSITY_VERY_VERBOSE,
+                false,
+                true,
+                false,
+                false
+            ],
+            [
+                OutputInterface::VERBOSITY_VERBOSE,
+                true,
+                false,
+                false,
+                false
+            ],
+            [
+                OutputInterface::OUTPUT_NORMAL,
+                false,
+                false,
+                false,
+                false
+            ]
+        ];
     }
 
     public function testOnPostPackageInstall()

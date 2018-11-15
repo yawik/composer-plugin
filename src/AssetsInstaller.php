@@ -198,24 +198,27 @@ class AssetsInstaller
         /* @var ModuleOptions $options */
         $app        = $this->application;
         $options    = $app->getServiceManager()->get('Core/Options');
-        $filesystem = $this->filesystem;
 
         $logDir     = $options->getLogDir();
         $cacheDir   = $options->getCacheDir();
         $configDir  = realpath(Application::getConfigDir());
 
-        if (!is_dir($options->getLogDir())) {
-            $filesystem->mkdir($logDir, 0777);
+        $dirs = [
+            $configDir.'/autoload',
+            $cacheDir,
+            $logDir,
+            $logDir.'/tracy',
+        ];
+        foreach ($dirs as $dir) {
+            try {
+                if (!is_dir($dir)) {
+                    $this->mkdir($dir, 0777, true);
+                }
+                $this->chmod($dir);
+            } catch (\Exception $exception) {
+                $this->logError($exception->getMessage());
+            }
         }
-
-        if (!is_dir($cacheDir)) {
-            $filesystem->mkdir($cacheDir, 0777);
-        }
-
-        $this->chmod($cacheDir);
-        $this->chmod($logDir);
-        $this->chmod($logDir.'/tracy');
-        $this->chmod($configDir.'/autoload');
     }
 
     public function getPublicDir()
@@ -261,8 +264,14 @@ class AssetsInstaller
     {
         if (is_dir($dir) || is_file($dir)) {
             $this->filesystem->chmod($dir, 0777);
-            $this->logDebug(sprintf('[yawik] <info>%s</info> with <info>0777</info>', $dir));
+            $this->log(sprintf('<info>chmod: <comment>%s</comment> with 0777</info>', $dir));
         }
+    }
+
+    private function mkdir($dir)
+    {
+        $this->filesystem->mkdir($dir, 0777);
+        $this->log(sprintf('<info>mkdir: </info><comment>%s</comment>', $dir));
     }
 
     public function renderInstallOutput($copyUsed, $rows, $exitCode)
@@ -326,20 +335,21 @@ class AssetsInstaller
 
     private function doLog($level, $message)
     {
+        $message = str_replace(getcwd().DIRECTORY_SEPARATOR, '', $message);
         if ($this->logger instanceof LoggerInterface) {
-            $message = str_replace(getcwd().DIRECTORY_SEPARATOR, '', $message);
             $this->logger->log($level, $message);
         }
         if ($this->isCli()) {
-            $outputLevel = OutputInterface::VERBOSITY_NORMAL;
             switch ($level) {
                 case LogLevel::DEBUG:
                     $outputLevel = OutputInterface::VERBOSITY_VERY_VERBOSE;
                     break;
                 case LogLevel::ERROR:
                     $message = '<error>'.$message.'</error>';
-                    // no break
+                    $outputLevel = OutputInterface::OUTPUT_NORMAL;
+                    break;
                 case LogLevel::INFO:
+                default:
                     $outputLevel = OutputInterface::OUTPUT_NORMAL;
                     break;
             }
@@ -349,6 +359,10 @@ class AssetsInstaller
 
     private function doWrite($message, $outputLevel = 0)
     {
+        $message = sprintf(
+            '<info>[yawik]</info> %s',
+            $message
+        );
         $this->output->writeln($message, $outputLevel);
     }
 

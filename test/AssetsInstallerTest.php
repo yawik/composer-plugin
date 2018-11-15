@@ -212,16 +212,29 @@ class AssetsInstallerTest extends TestCase
         $filesystem->expects($this->exactly(4))
             ->method('chmod')
             ->withConsecutive(
+                [$rootDir.'/config/autoload',0777],
                 [$rootDir.'/var/cache',0777],
                 [$rootDir.'/var/log',0777],
-                [$rootDir.'/var/log/tracy',0777],
-                [$rootDir.'/config/autoload',0777]
+                [$rootDir.'/var/log/tracy',0777]
+
             )
         ;
 
         $logger = $this->prophesize(LoggerInterface::class);
         $logger
-            ->log(LogLevel::DEBUG, Argument::containingString('[yawik]'))
+            ->log(LogLevel::INFO, Argument::containingString('config/autoload'))
+            ->shouldBeCalled()
+        ;
+        $logger
+            ->log(LogLevel::INFO, Argument::containingString('var/cache'))
+            ->shouldBeCalled()
+        ;
+        $logger
+            ->log(LogLevel::INFO, Argument::containingString('var/log'))
+            ->shouldBeCalled()
+        ;
+        $logger
+            ->log(LogLevel::INFO, Argument::containingString('var/log/tracy'))
             ->shouldBeCalled()
         ;
 
@@ -247,11 +260,11 @@ class AssetsInstallerTest extends TestCase
             ->shouldBeCalled();
 
         // output expectation
-        $output->writeln('some debug', OutputInterface::VERBOSITY_VERY_VERBOSE)
+        $output->writeln(Argument::containingString('some debug'), OutputInterface::VERBOSITY_VERY_VERBOSE)
             ->shouldBeCalled();
-        $output->writeln('some info', OutputInterface::OUTPUT_NORMAL)
+        $output->writeln(Argument::containingString('some info'), OutputInterface::OUTPUT_NORMAL)
             ->shouldBeCalled();
-        $output->writeln('<error>some error</error>', OutputInterface::OUTPUT_NORMAL)
+        $output->writeln(Argument::containingString('some error'), OutputInterface::OUTPUT_NORMAL)
             ->shouldBeCalled();
 
         $target

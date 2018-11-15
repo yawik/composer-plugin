@@ -22,6 +22,7 @@ use Composer\Plugin\PluginInterface;
 use Composer\Script\Event as ScriptEvent;
 use Symfony\Component\Console\Input\ArgvInput;
 use Symfony\Component\Console\Output\ConsoleOutput;
+use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 /**
@@ -78,10 +79,23 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     /**
      * Define AssetsInstaller to use
      * This very usefull during testing process
-     * @param $installer
+     * @param AssetsInstaller $installer
      */
-    public function setAssetsInstaller($installer)
+    public function setAssetsInstaller(AssetsInstaller $installer)
     {
+        $output  = $this->output;
+        if (!is_null($output)) {
+            $level   = OutputInterface::OUTPUT_NORMAL;
+            if ($output->isVeryVerbose() || $output->isDebug()) {
+                $level = OutputInterface::VERBOSITY_VERY_VERBOSE;
+            } elseif ($output->isVerbose()) {
+                $level = OutputInterface::VERBOSITY_VERBOSE;
+            }
+
+            $installerOutput = $installer->getOutput();
+            $installerOutput->setVerbosity($level);
+            $installerOutput->setDecorated($output->isDecorated());
+        }
         $this->assetsInstaller = $installer;
     }
 
@@ -137,12 +151,9 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     {
         if (!is_object($this->assetsInstaller)) {
             $assetInstaller = new AssetsInstaller();
-            if (php_sapi_name()==='cli') {
-                $assetInstaller->setInput(new ArgvInput())->setOutput(new ConsoleOutput());
-                $assetInstaller->getOutput()->setDecorated(true);
-            }
-            $this->assetsInstaller = $assetInstaller;
+            $this->setAssetsInstaller($assetInstaller);
         }
+
         return $this->assetsInstaller;
     }
 
