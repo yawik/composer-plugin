@@ -170,7 +170,11 @@ class AssetsInstaller
 
     private function scanInstalledModules()
     {
-        /* @var ModuleManager $manager */
+        if (is_file($file = __DIR__.'/../../../autoload.php')) {
+            include $file;
+        }
+
+        /* @var \Zend\ModuleManager\ModuleManager $manager */
         $app            = Application::init();
         $manager        = $app->getServiceManager()->get('ModuleManager');
         $modules        = $manager->getLoadedModules(true);
@@ -198,6 +202,7 @@ class AssetsInstaller
                 $this->logError($e->getMessage()); // @codeCoverageIgnore
             } // @codeCoverageIgnore
         }
+
         return $moduleAssets;
     }
 
