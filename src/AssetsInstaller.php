@@ -170,9 +170,11 @@ class AssetsInstaller
 
     private function scanInstalledModules()
     {
+        // @codeCoverageIgnoreStart
         if (is_file($file = __DIR__.'/../../../autoload.php')) {
             include $file;
         }
+        // @codeCoverageIgnoreEnd
 
         /* @var \Zend\ModuleManager\ModuleManager $manager */
         $app            = Application::init();
