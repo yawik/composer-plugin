@@ -14,6 +14,7 @@ use Core\Application;
 use Core\Asset\AssetProviderInterface;
 use Symfony\Component\Console\Input\StringInput;
 use Symfony\Component\Console\Output\ConsoleOutput;
+use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Finder\Finder;
@@ -40,10 +41,16 @@ class AssetsInstaller
 
     public function __construct()
     {
+        // @codeCoverageIgnoreStart
+        if (!class_exists('Core\\Application')) {
+            include __DIR__.'/../../../autoload.php';
+        }
+        // @codeCoverageIgnoreEnd
+        
         umask(0000);
         $this->filesystem  = new Filesystem();
         $this->input       = new StringInput('');
-        $this->output      = new ConsoleOutput($this->input);
+        $this->output      = new ConsoleOutput(OutputInterface::VERBOSITY_NORMAL);
     }
 
     public function setFilesystem(Filesystem $filesystem)
@@ -163,12 +170,6 @@ class AssetsInstaller
 
     private function scanInstalledModules()
     {
-        // @codeCoverageIgnoreStart
-        if (!class_exists('Core\\Application')) {
-            include_once __DIR__.'/../../../autoload.php';
-        }
-        // @codeCoverageIgnoreEnd
-
         /* @var ModuleManager $manager */
         $app            = Application::init();
         $manager        = $app->getServiceManager()->get('ModuleManager');
