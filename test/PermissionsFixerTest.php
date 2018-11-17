@@ -9,9 +9,6 @@
 
 namespace YawikTest\Composer;
 
-use Prophecy\Argument;
-use Psr\Log\LoggerInterface;
-use Psr\Log\LogLevel;
 use Symfony\Component\Console\Input\StringInput;
 use Symfony\Component\Console\Output\StreamOutput;
 use Symfony\Component\Filesystem\Filesystem;
@@ -20,6 +17,7 @@ use Yawik\Composer\PermissionsFixer;
 use PHPUnit\Framework\TestCase;
 use Yawik\Composer\PermissionsFixerModuleInterface;
 use Yawik\Composer\Plugin;
+use Core\Options\ModuleOptions as CoreOptions;
 
 /**
  * Class PermissionsFixerTest
@@ -51,7 +49,6 @@ class PermissionsFixerTest extends TestCase
         $this->output       = $output;
         $this->target       = $target;
     }
-
     public function testGetSubscribedEvent()
     {
         $this->assertEquals([
@@ -59,6 +56,7 @@ class PermissionsFixerTest extends TestCase
             Plugin::YAWIK_CONFIGURE_EVENT   => 'onConfigureEvent'
         ], PermissionsFixer::getSubscribedEvents());
     }
+
 
     public function testOnConfigureEvent()
     {
@@ -96,9 +94,14 @@ class PermissionsFixerTest extends TestCase
             ->willReturn('bar')
         ;
         $modules[] = $modError;
+        $options = $this->prophesize(CoreOptions::class);
         $event = $this->prophesize(ConfigureEvent::class);
         $event->getModules()
             ->willReturn($modules)
+            ->shouldBeCalled()
+        ;
+        $event->getOptions()
+            ->willReturn($options)
             ->shouldBeCalled()
         ;
 

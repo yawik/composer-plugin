@@ -31,7 +31,7 @@ install:
 
 script:
   - 'if [[ $COVERAGE=yes ]]; then
-        ./vendor/bin/phpunit --verbose --coverage-clover=clover.xml --coverage-php=clover.serialized;
+        ./vendor/bin/phpunit --verbose --coverage-clover clover.xml --coverage-php clover.serialized;
     else
         ./vendor/bin/phpunit --verbose;
     fi'

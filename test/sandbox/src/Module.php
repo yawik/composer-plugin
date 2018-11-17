@@ -9,17 +9,18 @@
 namespace Foo;
 
 use Yawik\Composer\PermissionsFixerModuleInterface;
+use Core\Options\ModuleOptions as CoreOptions;
 
 class Module implements PermissionsFixerModuleInterface
 {
-    public function getDirectoryPermissionLists()
+    public function getDirectoryPermissionLists(CoreOptions $options)
     {
         return [
             'public/static/Organizations/images'
         ];
     }
 
-    public function getFilePermissionLists()
+    public function getFilePermissionLists(CoreOptions $options)
     {
         return [];
     }
