@@ -16,7 +16,6 @@ use Yawik\Composer\Event\ConfigureEvent;
 use Yawik\Composer\PermissionsFixer;
 use PHPUnit\Framework\TestCase;
 use Yawik\Composer\PermissionsFixerModuleInterface;
-use Yawik\Composer\Plugin;
 use Core\Options\ModuleOptions as CoreOptions;
 
 /**
@@ -49,14 +48,6 @@ class PermissionsFixerTest extends TestCase
         $this->output       = $output;
         $this->target       = $target;
     }
-    public function testGetSubscribedEvent()
-    {
-        $this->assertEquals([
-            Plugin::YAWIK_ACTIVATE_EVENT    => 'onActivateEvent',
-            Plugin::YAWIK_CONFIGURE_EVENT   => 'onConfigureEvent'
-        ], PermissionsFixer::getSubscribedEvents());
-    }
-
 
     public function testOnConfigureEvent()
     {

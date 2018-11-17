@@ -12,7 +12,6 @@ namespace YawikTest\Composer;
 use Composer\Composer;
 use Composer\DependencyResolver\Operation\InstallOperation;
 use Composer\DependencyResolver\Operation\UpdateOperation;
-use Composer\EventDispatcher\EventDispatcher;
 use Composer\Installer\InstallationManager;
 use Composer\Installer\PackageEvent;
 use Composer\IO\IOInterface;
@@ -23,12 +22,11 @@ use Core\Options\ModuleOptions;
 use Interop\Container\ContainerInterface;
 use PHPUnit\Framework\TestCase;
 use Prophecy\Argument;
-use Yawik\Composer\AssetsInstaller;
 use Yawik\Composer\Event\ActivateEvent;
 use Yawik\Composer\Event\ConfigureEvent;
-use Yawik\Composer\PermissionsFixer;
 use Yawik\Composer\PermissionsFixerModuleInterface;
 use Yawik\Composer\Plugin;
+use Zend\EventManager\EventManager;
 use Zend\ModuleManager\ModuleManager;
 use Zend\Mvc\Application as ZendMvcApplication;
 
@@ -55,7 +53,7 @@ class PluginTest extends TestCase
 
     private $package;
 
-    private $dispatcher;
+    private $events;
 
     public function setUp()
     {
@@ -76,12 +74,16 @@ class PluginTest extends TestCase
         ], Plugin::getSubscribedEvents());
     }
 
+    public function testGetEventManager()
+    {
+        $target = new Plugin();
+        $this->assertInstanceOf(EventManager::class, $target->getEventManager());
+    }
     private function setupMock($operationType = 'install')
     {
         $composer       = $this->prophesize(Composer::class);
         $installManager = $this->prophesize(InstallationManager::class);
         $package        = $this->prophesize(PackageInterface::class);
-        $dispatcher     = $this->prophesize(EventDispatcher::class);
 
         $installManager->getInstallPath($package->reveal())
             ->willReturn($this->testDir)
@@ -89,9 +91,6 @@ class PluginTest extends TestCase
 
         $composer->getInstallationManager()
             ->will([$installManager,'reveal'])
-        ;
-        $composer->getEventDispatcher()
-            ->will([$dispatcher,'reveal'])
         ;
 
         if ($operationType == 'update') {
@@ -118,10 +117,9 @@ class PluginTest extends TestCase
         $this->installManager   = $installManager;
         $this->packageEvent     = $packageEvent;
         $this->package          = $package;
-        $this->dispatcher       = $dispatcher;
     }
 
-    private function setupActivateDispatcher($dispatcher)
+    private function configureEventManager($manager)
     {
         $eventChecker = function ($event) {
             $this->assertInstanceOf(ActivateEvent::class, $event);
@@ -129,14 +127,19 @@ class PluginTest extends TestCase
             $this->assertInstanceOf(Composer::class, $event->getComposer());
             return true;
         };
-        $dispatcher->addSubscriber(Argument::type(AssetsInstaller::class))
-            ->shouldBeCalled()
+        $manager->expects($this->exactly(4))
+            ->method('attach')
+            ->withConsecutive(
+                [Plugin::YAWIK_ACTIVATE_EVENT,$this->isType('array')],
+                [Plugin::YAWIK_ACTIVATE_EVENT,$this->isType('array')],
+                [Plugin::YAWIK_CONFIGURE_EVENT,$this->isType('array')],
+                [Plugin::YAWIK_CONFIGURE_EVENT,$this->isType('array')]
+            )
         ;
-        $dispatcher->addSubscriber(Argument::type(PermissionsFixer::class))
-            ->shouldBeCalled()
-        ;
-        $dispatcher->dispatch(Plugin::YAWIK_ACTIVATE_EVENT, Argument::that($eventChecker))
-            ->shouldBeCalled()
+
+        $manager->expects($this->once())
+            ->method('triggerEvent')
+            ->with($this->callback($eventChecker))
         ;
     }
 
@@ -148,18 +151,14 @@ class PluginTest extends TestCase
 
     public function testActivate()
     {
-        $dispatcher = $this->prophesize(EventDispatcher::class);
         $composer   = $this->prophesize(Composer::class);
         $io         = $this->prophesize(IOInterface::class);
+        $manager    = $this->createMock(EventManager::class);
 
-        $this->setupActivateDispatcher($dispatcher);
-
-        $composer->getEventDispatcher()
-            ->shouldBeCalled()
-            ->willReturn($dispatcher->reveal())
-        ;
+        $this->configureEventManager($manager);
 
         $plugin = new TestPlugin();
+        $plugin->setEventManager($manager);
         $plugin->activate($composer->reveal(), $io->reveal());
     }
 
@@ -277,17 +276,16 @@ class PluginTest extends TestCase
         $app        = $this->prophesize(Application::class);
         $manager    = $this->prophesize(ModuleManager::class);
         $options    = $this->prophesize(ModuleOptions::class);
-        $mod1       = $this->prophesize(PermissionsFixerModuleInterface::class)
-            ->reveal();
+        $mod1       = $this->prophesize(PermissionsFixerModuleInterface::class)->reveal();
         $modules    = [$mod1];
-        $dispatcher = $this->dispatcher;
+        $events     = $this->createMock(EventManager::class);
 
         $app->getServiceManager()->willReturn($container);
         $container->get('ModuleManager')->willReturn($manager);
         $container->get('Core/Options')->willReturn($options->reveal());
         $manager->getLoadedModules()->willReturn($modules);
 
-        $this->setupActivateDispatcher($dispatcher);
+        //$this->configureEventManager($events);
         $assertEvent = function ($event) use ($mod1, $options) {
             $this->assertInstanceOf(ConfigureEvent::class, $event);
             $this->assertEquals($options->reveal(), $event->getOptions());
@@ -298,14 +296,15 @@ class PluginTest extends TestCase
             $this->assertInstanceOf(CoreModule::class, $modules[1]);
             return true;
         };
-        $dispatcher->dispatch(Plugin::YAWIK_CONFIGURE_EVENT, Argument::that($assertEvent))
-            ->shouldBeCalled()
+        $events->expects($this->once())
+            ->method('triggerEvent')
+            ->with($this->callback($assertEvent))
         ;
 
         $plugin = new TestPlugin();
+        $plugin->setEventManager($events);
         $plugin->setInstalledModules(['Core']);
         $plugin->setApplication($app->reveal());
-        $plugin->activate($this->composer->reveal(), $this->output->reveal());
         $plugin->onPostAutoloadDump();
     }
 }

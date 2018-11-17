@@ -13,7 +13,6 @@ namespace YawikTest\Composer;
 
 include __DIR__.'/sandbox/src/Module.php';
 
-use Composer\Installer;
 use Core\Module as CoreModule;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Filesystem\Filesystem;
@@ -21,7 +20,6 @@ use Symfony\Component\Finder\Finder;
 use Yawik\Composer\AssetProviderInterface;
 use Yawik\Composer\AssetsInstaller;
 use Yawik\Composer\Event\ConfigureEvent;
-use Yawik\Composer\Plugin;
 
 /**
  * Class AssetsInstallerTest
@@ -34,14 +32,6 @@ use Yawik\Composer\Plugin;
 class AssetsInstallerTest extends TestCase
 {
     use TestOutputTrait;
-
-    public function testGetSubscribedEvent()
-    {
-        $this->assertEquals([
-            Plugin::YAWIK_ACTIVATE_EVENT    => 'onActivateEvent',
-            Plugin::YAWIK_CONFIGURE_EVENT   => 'onConfigureEvent'
-        ], AssetsInstaller::getSubscribedEvents());
-    }
 
     public function testOnConfigureEvent()
     {

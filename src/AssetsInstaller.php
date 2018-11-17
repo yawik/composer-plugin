@@ -10,7 +10,6 @@
 
 namespace Yawik\Composer;
 
-use Composer\EventDispatcher\EventSubscriberInterface;
 use Core\Application;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Console\Style\SymfonyStyle;
@@ -23,7 +22,7 @@ use Yawik\Composer\Event\ConfigureEvent;
  * @author  Anthonius Munthi <me@itstoni.com>
  * @TODO    Create more documentation for methods
  */
-class AssetsInstaller implements EventSubscriberInterface
+class AssetsInstaller
 {
     use LogTrait;
 
@@ -39,14 +38,6 @@ class AssetsInstaller implements EventSubscriberInterface
     public function __construct()
     {
         $this->filesystem = new Filesystem();
-    }
-
-    public static function getSubscribedEvents()
-    {
-        return [
-            Plugin::YAWIK_ACTIVATE_EVENT => 'onActivateEvent',
-            Plugin::YAWIK_CONFIGURE_EVENT => 'onConfigureEvent'
-        ];
     }
 
     public function onConfigureEvent(ConfigureEvent $event)

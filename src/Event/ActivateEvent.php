@@ -10,7 +10,7 @@
 namespace Yawik\Composer\Event;
 
 use Composer\Composer;
-use Composer\EventDispatcher\Event;
+use Zend\EventManager\Event;
 use Composer\IO\IOInterface;
 use Yawik\Composer\Plugin;
 
@@ -25,6 +25,7 @@ class ActivateEvent extends Event
      * @var Composer
      */
     private $composer;
+
 
     public function __construct(Composer $composer, IOInterface $output)
     {

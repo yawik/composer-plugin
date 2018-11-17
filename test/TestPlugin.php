@@ -9,10 +9,10 @@
 
 namespace YawikTest\Composer;
 
-use Composer\EventDispatcher\EventDispatcher;
 use Composer\IO\IOInterface;
 use Core\Application;
 use Yawik\Composer\Plugin;
+use Zend\EventManager\EventManager;
 
 /**
  * A class to make Plugin class testable
@@ -21,11 +21,11 @@ use Yawik\Composer\Plugin;
 class TestPlugin extends Plugin
 {
     /**
-     * @param EventDispatcher $dispatcher
+     * @param EventManager $manager
      */
-    public function setDispatcher($dispatcher)
+    public function setEventManager(EventManager $manager)
     {
-        $this->dispatcher = $dispatcher;
+        $this->eventManager = $manager;
     }
 
     /**

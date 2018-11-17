@@ -11,30 +11,22 @@
 namespace Yawik\Composer;
 
 use Composer\Composer;
-use Composer\DependencyResolver\Operation\InstallOperation;
-use Composer\DependencyResolver\Operation\UpdateOperation;
-use Composer\DependencyResolver\Operation\UninstallOperation;
-use Composer\EventDispatcher\EventDispatcher;
 use Composer\EventDispatcher\EventSubscriberInterface;
 use Composer\Installer\PackageEvent;
 use Composer\IO\IOInterface;
 use Composer\Package\PackageInterface;
 use Composer\Plugin\PluginInterface;
-use Composer\Script\Event as ScriptEvent;
 use Core\Application;
-use Symfony\Component\Console\Input\ArgvInput;
-use Symfony\Component\Console\Output\ConsoleOutput;
-use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Style\SymfonyStyle;
 use Yawik\Composer\Event\ActivateEvent;
 use Yawik\Composer\Event\ConfigureEvent;
+use Zend\EventManager\EventManager;
 
 /**
  * Class Plugin
  * @package Yawik\Composer
  * @author  Anthonius Munthi <me@itstoni.com>
  * @since   0.32.0
- * @TODO    Create more documentation for methods
+ * @TODO:   Create more documentation for methods
  */
 class Plugin implements PluginInterface, EventSubscriberInterface
 {
@@ -47,11 +39,6 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     const ADD_TYPE_INSTALL      = 'install';
 
     const ADD_TYPE_REMOVE       = 'remove';
-
-    /**
-     * @var EventDispatcher
-     */
-    protected $dispatcher;
 
     /**
      * @var Application
@@ -75,28 +62,47 @@ class Plugin implements PluginInterface, EventSubscriberInterface
      */
     protected $installed = [];
 
+    /**
+     * An array list of uninstalled packages
+     * @var array
+     */
     protected $uninstalled = [];
 
     /**
-     * A lists of available installed yawik modules type
-     * @var array
+     * @var EventManager
      */
-    protected $yawikModules;
+    protected $eventManager;
+
+    protected function configureEvents()
+    {
+        $eventManager = $this->getEventManager();
+        $assets       = new AssetsInstaller();
+        $fixer        = new PermissionsFixer();
+
+        // activate events
+        $eventManager->attach(self::YAWIK_ACTIVATE_EVENT, [$assets,'onActivateEvent']);
+        $eventManager->attach(self::YAWIK_ACTIVATE_EVENT, [$fixer,'onActivateEvent']);
+
+        // configure events
+        $eventManager->attach(self::YAWIK_CONFIGURE_EVENT, [$assets,'onConfigureEvent']);
+        $eventManager->attach(self::YAWIK_CONFIGURE_EVENT, [$fixer,'onConfigureEvent']);
+    }
 
     public function activate(Composer $composer, IOInterface $io)
     {
-        $dispatcher       = $composer->getEventDispatcher();
-        $assets           = new AssetsInstaller();
-        $fixer            = new PermissionsFixer();
+        // @codeCoverageIgnoreStart
+        if (is_file($file = __DIR__.'/../../../autoload.php')) {
+            include $file;
+        }
+        // @codeCoverageIgnoreEnd
+        
+        $this->configureEvents();
 
-
-        $event = new ActivateEvent($composer, $io);
-        $dispatcher->addSubscriber($assets);
-        $dispatcher->addSubscriber($fixer);
-
-        $dispatcher->dispatch(static::YAWIK_ACTIVATE_EVENT, $event);
         $this->composer   = $composer;
         $this->output     = $io;
+        $event            = new ActivateEvent($composer, $io);
+
+        $this->getEventManager()->triggerEvent($event);
     }
 
     /**
@@ -115,17 +121,22 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     }
 
     /**
+     * @return EventManager
+     */
+    public function getEventManager()
+    {
+        if (!is_object($this->eventManager)) {
+            $this->eventManager = new EventManager();
+        }
+        return $this->eventManager;
+    }
+
+    /**
      * Get Yawik Application to use
      * @return Application|\Zend\Mvc\Application
      */
     public function getApplication()
     {
-        // @codeCoverageIgnoreStart
-        if (is_file($file = __DIR__.'/../../../autoload.php')) {
-            include $file;
-        }
-        // @codeCoverageIgnoreEnd
-
         if (!is_object($this->application)) {
             $this->application = Application::init();
         }
@@ -157,8 +168,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         }
 
         $event = new ConfigureEvent($coreOptions, $modules);
-        $dispatcher = $this->composer->getEventDispatcher();
-        $dispatcher->dispatch(self::YAWIK_CONFIGURE_EVENT, $event);
+        $this->getEventManager()->triggerEvent($event);
     }
 
     public function onPostPackageInstall(PackageEvent $event)

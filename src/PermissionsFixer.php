@@ -9,9 +9,6 @@
 
 namespace Yawik\Composer;
 
-use Composer\EventDispatcher\EventSubscriberInterface;
-use Core\Application;
-use Core\Options\ModuleOptions as CoreOptions;
 use Symfony\Component\Filesystem\Filesystem;
 use Yawik\Composer\Event\ConfigureEvent;
 
@@ -21,7 +18,7 @@ use Yawik\Composer\Event\ConfigureEvent;
  * @author      Anthonius Munthi <http://itstoni.com>
  * @since       0.32.0
  */
-class PermissionsFixer implements EventSubscriberInterface
+class PermissionsFixer
 {
     use LogTrait;
 
@@ -33,14 +30,6 @@ class PermissionsFixer implements EventSubscriberInterface
     public function __construct()
     {
         $this->filesystem = new Filesystem();
-    }
-
-    public static function getSubscribedEvents()
-    {
-        return [
-            Plugin::YAWIK_ACTIVATE_EVENT => 'onActivateEvent',
-            Plugin::YAWIK_CONFIGURE_EVENT => 'onConfigureEvent'
-        ];
     }
 
     public function onConfigureEvent(ConfigureEvent $event)
