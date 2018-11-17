@@ -20,7 +20,7 @@ matrix:
     - php: '7.3'
 
 before_install:
-  - phpenv config-rm xdebug.ini || echo "xdebug not available";
+  - if [[ $COVERAGE != yes ]]; then phpenv config-rm xdebug.ini || echo "xdebug not available"; fi
   - pecl channel-update pecl.php.net
   - phpenv config-add ./etc/travis/phpenv.ini
 
