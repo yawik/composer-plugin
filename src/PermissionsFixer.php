@@ -46,29 +46,31 @@ class PermissionsFixer implements EventSubscriberInterface
     public function onConfigureEvent(ConfigureEvent $event)
     {
         $modules        = $event->getModules();
+        $options        = $event->getOptions();
         $files          = [];
         $directories    = [];
 
         foreach ($modules as $module) {
             if ($module instanceof PermissionsFixerModuleInterface) {
-                $modDirLists    = $module->getDirectoryPermissionLists();
-                $modFileLists   = $module->getFilePermissionLists();
-                if (is_array($modDirLists)) {
-                    $directories    = array_merge($directories, $modDirLists);
-                } else {
+                $modDirLists    = $module->getDirectoryPermissionLists($options);
+                $modFileLists   = $module->getFilePermissionLists($options);
+
+                if (!is_null($modDirLists) && !is_array($modDirLists)) {
                     $this->logError(sprintf(
                         '<comment>%s::getDirectoryPermissionList()</comment> should return an array.',
                         get_class($module)
                     ));
+                } else {
+                    $directories    = array_merge($directories, $modDirLists);
                 }
 
-                if (is_array($modFileLists)) {
-                    $files = array_merge($files, $modFileLists);
-                } else {
+                if (!is_null($modFileLists) && !is_array($modFileLists)) {
                     $this->logError(sprintf(
                         '<comment>%s::getFilePermissionList()</comment> should return an array.',
                         get_class($module)
                     ));
+                } else {
+                    $files = array_merge($files, $modFileLists);
                 }
             }
         }

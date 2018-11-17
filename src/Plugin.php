@@ -121,8 +121,8 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     public function getApplication()
     {
         // @codeCoverageIgnoreStart
-        if (is_file(__DIR__.'/../../vendor/autoload')) {
-            include __DIR__.'/../../vendor/autoload';
+        if (is_file($file = __DIR__.'/../../../autoload.php')) {
+            include $file;
         }
         // @codeCoverageIgnoreEnd
 

@@ -9,6 +9,8 @@
 
 namespace Yawik\Composer;
 
+use Core\Options\ModuleOptions as CoreOptions;
+
 /**
  * An interface for modules to determines which file and directories
  * need to fix during installation
@@ -22,14 +24,16 @@ interface PermissionsFixerModuleInterface
     /**
      * Lists of files that permissions need to be fixed
      *
-     * @return array A list of files
+     * @param   CoreOptions     $options A CoreOptions object to use
+     * @return  array           A list of files
      */
-    public function getFilePermissionLists();
+    public function getFilePermissionLists(CoreOptions $options);
 
     /**
      * Lists of directories that permissions need to be fixed
      *
+     * @param   CoreOptions     $options A CoreOptions object to use
      * @return array A list of files
      */
-    public function getDirectoryPermissionLists();
+    public function getDirectoryPermissionLists(CoreOptions $options);
 }
