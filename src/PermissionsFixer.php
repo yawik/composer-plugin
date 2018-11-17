@@ -9,9 +9,11 @@
 
 namespace Yawik\Composer;
 
+use Composer\EventDispatcher\EventSubscriberInterface;
 use Core\Application;
 use Core\Options\ModuleOptions as CoreOptions;
 use Symfony\Component\Filesystem\Filesystem;
+use Yawik\Composer\Event\ConfigureEvent;
 
 /**
  * Class        PermissionsFixer
@@ -19,81 +21,102 @@ use Symfony\Component\Filesystem\Filesystem;
  * @author      Anthonius Munthi <http://itstoni.com>
  * @since       0.32.0
  */
-class PermissionsFixer
+class PermissionsFixer implements EventSubscriberInterface
 {
     use LogTrait;
 
     /**
      * @var Filesystem
      */
-    private $filesystem;
+    protected $filesystem;
 
     public function __construct()
     {
         $this->filesystem = new Filesystem();
     }
 
-    /**
-     * @param Filesystem $filesystem
-     * @return PermissionsFixer
-     */
-    public function setFilesystem($filesystem)
+    public static function getSubscribedEvents()
     {
-        $this->filesystem = $filesystem;
-        return $this;
+        return [
+            Plugin::YAWIK_ACTIVATE_EVENT => 'onActivateEvent',
+            Plugin::YAWIK_CONFIGURE_EVENT => 'onConfigureEvent'
+        ];
     }
 
-    /**
-     *
-     */
-    public function fix()
+    public function onConfigureEvent(ConfigureEvent $event)
     {
-        /* @var CoreOptions $options */
-        $app        = Application::init();
-        $options    = $app->getServiceManager()->get('Core/Options');
+        $modules        = $event->getModules();
+        $files          = [];
+        $directories    = [];
 
-        $logDir     = $options->getLogDir();
-        $cacheDir   = $options->getCacheDir();
-        $configDir  = realpath(Application::getConfigDir());
-
-        $dirs = [
-            $configDir.'/autoload',
-            $cacheDir,
-            $logDir,
-            $logDir.'/tracy',
-        ];
-        foreach ($dirs as $dir) {
-            try {
-                if (!is_dir($dir)) {
-                    $this->mkdir($dir);
+        foreach ($modules as $module) {
+            if ($module instanceof PermissionsFixerModuleInterface) {
+                $modDirLists    = $module->getDirectoryPermissionLists();
+                $modFileLists   = $module->getFilePermissionLists();
+                if (is_array($modDirLists)) {
+                    $directories    = array_merge($directories, $modDirLists);
+                } else {
+                    $this->logError(sprintf(
+                        '<comment>%s::getDirectoryPermissionList()</comment> should return an array.',
+                        get_class($module)
+                    ));
                 }
-                $this->chmod($dir);
-            } catch (\Exception $exception) {
-                $this->logError($exception->getMessage());
+
+                if (is_array($modFileLists)) {
+                    $files = array_merge($files, $modFileLists);
+                } else {
+                    $this->logError(sprintf(
+                        '<comment>%s::getFilePermissionList()</comment> should return an array.',
+                        get_class($module)
+                    ));
+                }
             }
         }
 
-        if (!is_file($logFile = $logDir.'/yawik.log')) {
-            touch($logFile);
+        foreach ($directories as $directory) {
+            if (!is_dir($directory)) {
+                $this->mkdir($directory);
+            }
+            $this->chmod($directory);
         }
-        $this->chmod($logFile, 0666);
+
+        foreach ($files as $file) {
+            if (!is_file($file)) {
+                $this->touch($file);
+            }
+            $this->chmod($file, 0666);
+        }
     }
 
-    private function chmod($dir, $mode = 0777)
+    public function touch($file)
     {
-        if (is_dir($dir) || is_file($dir)) {
+        try {
+            $this->filesystem->touch($file);
+            $this->log('created <info>'.$file.'</info>', 'touch');
+        } catch (\Exception $exception) {
+            $this->logError($exception->getMessage(), 'touch');
+        }
+    }
+
+    public function chmod($dir, $mode = 0777)
+    {
+        try {
             $this->filesystem->chmod($dir, $mode);
-            $this->log(sprintf(
-                '<info>chmod: <comment>%s</comment> with %s</info>',
-                $dir,
-                decoct(fileperms($dir) & 0777)
-            ));
+            $fileperms  = decoct(@fileperms($dir) & 0777);
+            $message    = sprintf('<comment>%s</comment> with %s', $dir, $fileperms);
+            $this->log($message, 'chmod');
+        } catch (\Exception $exception) {
+            $this->logError($exception->getMessage(), 'chmod');
         }
     }
 
-    private function mkdir($dir)
+    public function mkdir($dir, $mode = 0777)
     {
-        $this->filesystem->mkdir($dir, 0777);
-        $this->log(sprintf('<info>mkdir: </info><comment>%s</comment>', $dir));
+        try {
+            $this->filesystem->mkdir($dir, $mode);
+            $this->log(sprintf('<comment>%s</comment>', $dir), 'mkdir');
+        } catch (\Exception $e) {
+            $this->logError($e->getMessage(), 'mkdir');
+        }
     }
 }

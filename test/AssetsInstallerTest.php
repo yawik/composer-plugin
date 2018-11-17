@@ -11,14 +11,17 @@
 
 namespace YawikTest\Composer;
 
-use Prophecy\Argument;
-use Psr\Log\LoggerInterface;
-use Psr\Log\LogLevel;
-use Symfony\Component\Console\Input\StringInput;
-use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Output\StreamOutput;
-use Yawik\Composer\AssetsInstaller;
+include __DIR__.'/sandbox/src/Module.php';
+
+use Composer\Installer;
+use Core\Module as CoreModule;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Filesystem\Filesystem;
+use Symfony\Component\Finder\Finder;
+use Yawik\Composer\AssetProviderInterface;
+use Yawik\Composer\AssetsInstaller;
+use Yawik\Composer\Event\ConfigureEvent;
+use Yawik\Composer\Plugin;
 
 /**
  * Class AssetsInstallerTest
@@ -27,207 +30,298 @@ use PHPUnit\Framework\TestCase;
  * @author  Anthonius Munthi <me@itstoni.com>
  * @since   0.32.0
  * @covers  \Yawik\Composer\AssetsInstaller
- * @covers  \Yawik\Composer\LogTrait
  */
 class AssetsInstallerTest extends TestCase
 {
+    use TestOutputTrait;
+
+    public function testGetSubscribedEvent()
+    {
+        $this->assertEquals([
+            Plugin::YAWIK_ACTIVATE_EVENT    => 'onActivateEvent',
+            Plugin::YAWIK_CONFIGURE_EVENT   => 'onConfigureEvent'
+        ], AssetsInstaller::getSubscribedEvents());
+    }
+
+    public function testOnConfigureEvent()
+    {
+        $mod1   = $this->createMock(AssetProviderInterface::class);
+        $mod2   = new CoreModule();
+        $event  = $this->createMock(ConfigureEvent::class);
+        $mod1->expects($this->once())
+            ->method('getPublicDir')
+            ->willReturn(__DIR__.'/fixtures/foo')
+        ;
+        $event->expects($this->once())
+            ->method('getModules')
+            ->willReturn([$mod1,$mod2])
+        ;
+
+        $installer  = $this->getMockBuilder(AssetsInstaller::class)
+            ->setMethods(['install'])
+            ->getMock()
+        ;
+        $modulesAssert = function ($modules) {
+            $this->assertCount(2, $modules);
+            $this->assertArrayHasKey('Core', $modules);
+            $this->assertContains('/vendor/yawik/core', $modules['Core']);
+            return true;
+        };
+        $installer->expects($this->once())
+            ->method('install')
+            ->with($this->callback($modulesAssert))
+        ;
+
+        $installer->onConfigureEvent($event);
+    }
+
     /**
-     * @var AssetsInstaller
+     * @param string $flag
+     * @param string $expectedMethod
+     * @dataProvider getTestInstall
      */
-    private $target;
-
-    /**
-     * @var StreamOutput
-     */
-    private $output;
-
-    /**
-     * Store the current directory because Yawik config file will chdir into sandbox
-     * @var string
-     */
-    private static $cwd;
-
-    public function setUp()
+    public function testInstall($flag, $expectedMethod)
     {
-        $output   = new StreamOutput(fopen('php://memory', 'w'));
-        $input    = new StringInput('some input');
-
-        // setup the target
-        $target = new AssetsInstaller();
-        $target->setOutput($output);
-        $target->setInput($input);
-
-        $this->output       = $output;
-        $this->target       = $target;
-    }
-
-    public static function setUpBeforeClass()
-    {
-        static::$cwd = getcwd();
-    }
-
-    public static function tearDownAfterClass()
-    {
-        chdir(static::$cwd);
-    }
-
-    /**
-     * Gets the display returned by the last execution of the command.
-     *
-     * @param bool $normalize Whether to normalize end of lines to \n or not
-     *
-     * @return string The display
-     */
-    public function getDisplay($normalize = false)
-    {
-        $output = $this->output;
-
-        rewind($output->getStream());
-
-        $display = stream_get_contents($output->getStream());
-
-        if ($normalize) {
-            $display = str_replace(PHP_EOL, "\n", $display);
-        }
-
-        return $display;
-    }
-
-    public function testDirectoriesScan()
-    {
-        $this->assertEquals(__DIR__.'/sandbox/public/modules', $this->target->getModuleAssetDir());
-    }
-
-    public function testInstall()
-    {
-        $fixtures = __DIR__.'/fixtures/public1';
         $modules = [
-            'Foo' => $fixtures,
-            'Hello' => $fixtures,
+            'Foo' => __DIR__.'/fixtures/foo',
+            'Hello' => __DIR__.'/fixtures/hello',
         ];
 
-        $moduleDir = $this->target->getModuleAssetDir();
+        $fs = $this->createMock(Filesystem::class);
+        $fs->expects($this->exactly(2))
+            ->method('remove')
+            ->withConsecutive(
+                [$this->stringContains('public/modules/Foo')],
+                [$this->stringContains('public/modules/Hello')]
+            )
+        ;
 
-        $this->target->install($modules, AssetsInstaller::METHOD_ABSOLUTE_SYMLINK);
-        $display = $this->getDisplay(true);
+        $installer = $this->getMockBuilder(TestAssetInstaller::class)
+            ->setMethods([
+                'relativeSymlinkWithFallback',
+                'absoluteSymlinkWithFallback',
+                'renderInstallOutput',
+                'hardcopy',
+            ])
+            ->getMock()
+        ;
 
-        $this->assertContains('absolute symlink', $display);
-        $this->assertDirectoryExists($moduleDir.'/Foo');
-        $this->assertDirectoryExists($moduleDir.'/Hello');
-        $this->assertFileExists($moduleDir.'/Foo/foo.js');
-        $this->assertFileExists($moduleDir.'/Hello/foo.js');
-        // should load loaded modules
-        $this->assertFileExists($moduleDir.'/Core/Gruntfile.js');
+        $installer->expects($this->exactly(2))
+            ->method($expectedMethod)
+            ->withConsecutive(
+                [$this->stringContains('fixtures/foo'), $this->stringContains('modules/Foo')],
+                [$this->stringContains('fixtures/hello'), $this->stringContains('modules/Hello')]
+            )
+            ->willReturn($flag)
+        ;
+        $installer->expects($this->once())
+            ->method('renderInstallOutput')
+        ;
+        $installer->setFilesystem($fs);
+        $installer->install($modules, $flag);
+    }
+
+    public function getTestInstall()
+    {
+        return [
+            // default using relative symlink
+            [null, 'relativeSymlinkWithFallback'],
+            [ AssetsInstaller::METHOD_RELATIVE_SYMLINK, 'relativeSymlinkWithFallback'],
+            [ AssetsInstaller::METHOD_ABSOLUTE_SYMLINK, 'absoluteSymlinkWithFallback'],
+            [ AssetsInstaller::METHOD_COPY, 'hardcopy'],
+        ];
+    }
+
+    public function testInstallWithException()
+    {
+        $modules = [
+            'Foo' => __DIR__.'/fixtures/foo',
+            'Hello' => __DIR__.'/fixtures/hello',
+        ];
+
+        $installer = $this->getMockBuilder(TestAssetInstaller::class)
+            ->setMethods([
+                'relativeSymlinkWithFallback',
+                'absoluteSymlinkWithFallback',
+                'renderInstallOutput',
+                'hardcopy',
+            ])
+            ->getMock()
+        ;
+        $fs = $this->createMock(Filesystem::class);
+        $fs->expects($this->exactly(2))
+            ->method('remove')
+            ->willThrowException(new \Exception('some error'))
+        ;
+
+        $installer->expects($this->once())
+            ->method('renderInstallOutput')
+            ->with(false, $this->countOf(2), 1)
+        ;
+
+        $installer->setFilesystem($fs);
+        $installer->install($modules);
     }
 
     public function testUninstall()
     {
-        $target     = $this->target;
-        $fixtures   = __DIR__.'/fixtures/public1';
-        $moduleDir  = $target->getModuleAssetDir();
-        $modules    = [
-            'Foo' => $fixtures,
-            'Hello' => $fixtures,
-        ];
+        $targetDir = __DIR__.'/sandbox/public/modules';
+        @mkdir($fooDir = $targetDir.'/Foo', 0777, true);
+        @mkdir($helloDir = $targetDir.'/Hello', 0777, true);
 
-        $this->target->install($modules);
-        $this->target->uninstall(['Foo']);
-        $this->assertFileNotExists($moduleDir.'/Foo/foo.js');
-        $this->assertFileExists($moduleDir.'/Hello/foo.js');
+        $installer = $this->getMockBuilder(TestAssetInstaller::class)
+            ->setMethods(['log'])
+            ->getMock()
+        ;
+        $installer->expects($this->exactly(2))
+            ->method('log')
+            ->withConsecutive(
+                [$this->stringContains('Foo')],
+                [$this->stringContains('Hello')]
+            );
 
+        $this->assertDirectoryExists($fooDir);
+        $this->assertDirectoryExists($helloDir);
 
-        $this->target->uninstall(['Hello']);
-        $this->assertFileNotExists($moduleDir.'/Hello/foo.js');
+        $installer->uninstall(['Foo','Hello']);
+
+        $this->assertDirectoryNotExists($fooDir);
+        $this->assertDirectoryNotExists($helloDir);
+    }
+
+    public function testRenderInstallOutput()
+    {
+        $installer = new TestAssetInstaller();
+        $installer->setOutput($this->getOutput());
+
+        $installer->renderInstallOutput(true, [['Core','method','ok']], 0);
+        $display = $this->getDisplay();
+        $this->assertContains('Yawik Assets Installed!', $display);
+        $this->assertContains('installed via copy', $display);
+
+        $installer->renderInstallOutput(false, [['Core','method','ok']], 1);
+        $display = $this->getDisplay();
+        $this->assertContains('Some errors occurred while installing assets', $display);
+    }
+
+    public function testAbsoluteSymlinkWithFallback()
+    {
+        $installer = $this->getMockBuilder(AssetsInstaller::class)
+            ->setMethods(['symlink'])
+            ->getMock()
+        ;
+        $installer->expects($this->once())
+            ->method('symlink')
+            ->with('origin', 'target')
+        ;
+        $this->assertEquals(
+            AssetsInstaller::METHOD_ABSOLUTE_SYMLINK,
+            $installer->absoluteSymlinkWithFallback('origin', 'target')
+        );
+    }
+
+    public function testAbsoluteSymlinkWithFallbackError()
+    {
+        $installer = $this->getMockBuilder(AssetsInstaller::class)
+            ->setMethods(['symlink','hardCopy'])
+            ->getMock()
+        ;
+        $installer->expects($this->once())
+            ->method('symlink')
+            ->with('origin', 'target')
+            ->willThrowException(new \Exception('some error'))
+        ;
+        $installer->expects($this->once())
+            ->method('hardCopy')
+            ->with('origin', 'target')
+            ->willReturn('some value')
+        ;
+        $this->assertEquals(
+            'some value',
+            $installer->absoluteSymlinkWithFallback('origin', 'target')
+        );
+    }
+
+    public function testRelativeSymlinkWithFallback()
+    {
+        $installer = $this->getMockBuilder(AssetsInstaller::class)
+            ->setMethods(['symlink'])
+            ->getMock()
+        ;
+        $installer->expects($this->once())
+            ->method('symlink')
+            ->with('origin', 'target')
+        ;
+        $this->assertEquals(
+            AssetsInstaller::METHOD_RELATIVE_SYMLINK,
+            $installer->relativeSymlinkWithFallback('origin', 'target')
+        );
+    }
+
+    public function testRelativeSymlinkWithFallbackError()
+    {
+        $installer = $this->getMockBuilder(AssetsInstaller::class)
+            ->setMethods(['symlink','absoluteSymlinkWithFallback'])
+            ->getMock()
+        ;
+        $installer->expects($this->once())
+            ->method('symlink')
+            ->with('origin', 'target')
+            ->willThrowException(new \Exception('some error'))
+        ;
+        $installer->expects($this->once())
+            ->method('absoluteSymlinkWithFallback')
+            ->with('origin', 'target')
+            ->willReturn('some value')
+        ;
+        $this->assertEquals(
+            'some value',
+            $installer->relativeSymlinkWithFallback('origin', 'target')
+        );
+    }
+
+    public function testSymlinkShouldThrowWhenLinkIsBroken()
+    {
+        $filesystem = $this->createMock(Filesystem::class);
+
+        $installer = new TestAssetInstaller();
+        $installer->setFilesystem($filesystem);
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage(
+            'Symbolic link "target" was created but appears to be broken.'
+        );
+        $installer->symlink('origin', 'target');
     }
 
     public function testSymlink()
     {
-        $fixtures = __DIR__.'/fixtures/public1';
-        $modules = [
-            'Foo' => $fixtures,
-            'Hello' => $fixtures,
-        ];
+        $originDir      = __DIR__.'/fixtures/foo';
+        $targetDir      = __DIR__.'/sandbox/public/modules';
+        @mkdir($targetDir, 0777, true);
 
-        $moduleDir = $this->target->getModuleAssetDir();
+        //$this->expectException(\Exception::class);
+        $installer = new TestAssetInstaller();
+        $installer->symlink($originDir, $targetDir.'/Foo', true);
 
-        $this->target->install($modules, AssetsInstaller::METHOD_ABSOLUTE_SYMLINK);
-        $display = $this->getDisplay(true);
-
-        $this->assertContains('absolute symlink', $display);
-        $this->assertTrue(is_link($moduleDir.'/Foo'));
-        $this->assertDirectoryExists($moduleDir.'/Foo');
-        $this->assertDirectoryExists($moduleDir.'/Hello');
-        $this->assertFileExists($moduleDir.'/Foo/foo.js');
-        $this->assertFileExists($moduleDir.'/Hello/foo.js');
+        $this->assertDirectoryExists($targetDir.'/Foo');
+        $this->assertTrue(is_link($targetDir.'/Foo'));
     }
 
-    public function testRelative()
+    public function testHardCopy()
     {
-        $fixtures = __DIR__.'/fixtures/public1';
-        $modules = [
-            'Foo' => $fixtures,
-            'Hello' => $fixtures,
-        ];
+        $origin = __DIR__.'/fixtures/foo';
 
-        $moduleDir = $this->target->getModuleAssetDir();
-
-        $this->target->install($modules, AssetsInstaller::METHOD_RELATIVE_SYMLINK);
-        $display = $this->getDisplay(true);
-
-        $this->assertRegExp('/relative symlink/', $display);
-        $this->assertDirectoryExists($moduleDir.'/Foo');
-        $this->assertDirectoryExists($moduleDir.'/Hello');
-        $this->assertFileExists($moduleDir.'/Foo/foo.js');
-        $this->assertFileExists($moduleDir.'/Hello/foo.js');
-    }
-
-    public function testCopy()
-    {
-        $fixtures = __DIR__.'/fixtures/public1';
-        $modules = [
-            'Foo' => $fixtures,
-            'Hello' => $fixtures,
-        ];
-
-        $moduleDir = $this->target->getModuleAssetDir();
-
-        $this->target->install($modules, AssetsInstaller::METHOD_COPY);
-        $display = $this->getDisplay(true);
-
-        $this->assertContains('[NOTE] Some assets were installed via copy', $display);
-        $this->assertDirectoryExists($moduleDir.'/Foo');
-        $this->assertDirectoryExists($moduleDir.'/Hello');
-        $this->assertFileExists($moduleDir.'/Foo/foo.js');
-        $this->assertFileExists($moduleDir.'/Hello/foo.js');
-    }
-
-    public function testLog()
-    {
-        $log    = $this->prophesize(LoggerInterface::class);
-        $output = $this->prophesize(OutputInterface::class);
-        $target = $this->target;
-
-        // log expectation
-        $log->log(LogLevel::DEBUG, 'some debug')
-            ->shouldBeCalled();
-        $log->log(LogLevel::INFO, 'some info')
-            ->shouldBeCalled();
-        $log->log(LogLevel::ERROR, 'some error')
-            ->shouldBeCalled();
-
-        // output expectation
-        $output->writeln(Argument::containingString('some debug'), OutputInterface::VERBOSITY_VERY_VERBOSE)
-            ->shouldBeCalled();
-        $output->writeln(Argument::containingString('some info'), OutputInterface::OUTPUT_NORMAL)
-            ->shouldBeCalled();
-        $output->writeln(Argument::containingString('some error'), OutputInterface::OUTPUT_NORMAL)
-            ->shouldBeCalled();
-
-        $target
-            ->setLogger($log->reveal())
-            ->setOutput($output->reveal());
-        $target->logDebug('some debug');
-        $target->log('some info');
-        $target->logError('some error');
+        $fs = $this->createMock(Filesystem::class);
+        $fs->expects($this->once())
+            ->method('mirror')
+            ->with($origin, 'target', $this->isInstanceOf(Finder::class))
+        ;
+        $fs->expects($this->once())
+            ->method('mkdir')
+            ->with('target', 0777)
+        ;
+        $installer = new TestAssetInstaller();
+        $installer->setFilesystem($fs);
+        $installer->hardCopy($origin, 'target');
     }
 }

@@ -10,15 +10,12 @@
 
 namespace Yawik\Composer;
 
+use Composer\EventDispatcher\EventSubscriberInterface;
 use Core\Application;
-use Core\Asset\AssetProviderInterface;
-use Symfony\Component\Console\Input\StringInput;
-use Symfony\Component\Console\Output\ConsoleOutput;
-use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Finder\Finder;
-use Zend\ModuleManager\ModuleManager;
+use Yawik\Composer\Event\ConfigureEvent;
 
 /**
  * Class AssetsInstaller
@@ -26,7 +23,7 @@ use Zend\ModuleManager\ModuleManager;
  * @author  Anthonius Munthi <me@itstoni.com>
  * @TODO    Create more documentation for methods
  */
-class AssetsInstaller
+class AssetsInstaller implements EventSubscriberInterface
 {
     use LogTrait;
 
@@ -37,25 +34,45 @@ class AssetsInstaller
     /**
      * @var Filesystem
      */
-    private $filesystem;
+    protected $filesystem;
 
     public function __construct()
     {
-        // @codeCoverageIgnoreStart
-        if (!class_exists('Core\\Application')) {
-            include __DIR__.'/../../../autoload.php';
-        }
-        // @codeCoverageIgnoreEnd
-        
-        umask(0000);
-        $this->filesystem  = new Filesystem();
-        $this->input       = new StringInput('');
-        $this->output      = new ConsoleOutput(OutputInterface::VERBOSITY_NORMAL);
+        $this->filesystem = new Filesystem();
     }
 
-    public function setFilesystem(Filesystem $filesystem)
+    public static function getSubscribedEvents()
     {
-        $this->filesystem = $filesystem;
+        return [
+            Plugin::YAWIK_ACTIVATE_EVENT => 'onActivateEvent',
+            Plugin::YAWIK_CONFIGURE_EVENT => 'onConfigureEvent'
+        ];
+    }
+
+    public function onConfigureEvent(ConfigureEvent $event)
+    {
+        $moduleAssets   = array();
+        $modules        = $event->getModules();
+
+        foreach ($modules as $module) {
+            $className = get_class($module);
+            $moduleName = substr($className, 0, strpos($className, '\\'));
+            $r = new \ReflectionObject($module);
+            $file = $r->getFileName();
+            $dir = null;
+            if ($module instanceof AssetProviderInterface) {
+                $dir = $module->getPublicDir();
+            } else {
+                $testDir = substr($file, 0, stripos($file, 'src'.DIRECTORY_SEPARATOR.'Module.php')).'/public';
+                if (is_dir($testDir)) {
+                    $dir = $testDir;
+                }
+            }
+            if (is_dir($dir)) {
+                $moduleAssets[$moduleName] = realpath($dir);
+            }
+        }
+        $this->install($moduleAssets);
     }
 
     /**
@@ -67,14 +84,13 @@ class AssetsInstaller
      * @param array     $modules An array of modules
      * @param string    $expectedMethod Expected install method
      */
-    public function install($modules, $expectedMethod = self::METHOD_RELATIVE_SYMLINK)
+    public function install($modules, $expectedMethod = null)
     {
         $publicDir      = $this->getModuleAssetDir();
-        $loadedModules  = $this->scanInstalledModules();
-        $modules        = array_merge($loadedModules, $modules);
         $rows           = [];
         $exitCode       = 0;
         $copyUsed       = false;
+        $expectedMethod = is_null($expectedMethod) ? self::METHOD_RELATIVE_SYMLINK:$expectedMethod;
 
         foreach ($modules as $name => $originDir) {
             $targetDir = $publicDir.DIRECTORY_SEPARATOR.$name;
@@ -100,10 +116,10 @@ class AssetsInstaller
                 } else {
                     $rows[] = array(sprintf('<fg=yellow;options=bold>%s</>', '\\' === DIRECTORY_SEPARATOR ? 'WARNING' : '!'), $message, $method);
                 }
-            } catch (\Exception $e) { // @codeCoverageIgnoreStart
+            } catch (\Exception $e) {
                 $exitCode = 1;
                 $rows[] = array(sprintf('<fg=red;options=bold>%s</>', '\\' === DIRECTORY_SEPARATOR ? 'ERROR' : "\xE2\x9C\x98" /* HEAVY BALLOT X (U+2718) */), $message, $e->getMessage());
-            }// @codeCoverageIgnoreEnd
+            }
         }
 
         // render this output only on cli environment
@@ -149,7 +165,7 @@ class AssetsInstaller
 
     public function renderInstallOutput($copyUsed, $rows, $exitCode)
     {
-        $io = new SymfonyStyle($this->input, $this->output);
+        $io = new SymfonyStyle($this->getInput(), $this->getOutput());
         $io->newLine();
 
         $io->section('Yawik Assets Installed!');
@@ -168,61 +184,20 @@ class AssetsInstaller
         }
     }
 
-    private function scanInstalledModules()
-    {
-        // @codeCoverageIgnoreStart
-        if (is_file($file = __DIR__.'/../../../autoload.php')) {
-            include $file;
-        }
-        // @codeCoverageIgnoreEnd
-
-        /* @var \Zend\ModuleManager\ModuleManager $manager */
-        $app            = Application::init();
-        $manager        = $app->getServiceManager()->get('ModuleManager');
-        $modules        = $manager->getLoadedModules(true);
-        $moduleAssets   = array();
-
-        foreach ($modules as $module) {
-            try {
-                $className = get_class($module);
-                $moduleName = substr($className, 0, strpos($className, '\\'));
-                $r = new \ReflectionClass($className);
-                $file = $r->getFileName();
-                $dir = null;
-                if ($module instanceof AssetProviderInterface) {
-                    $dir = $module->getPublicDir();
-                } else {
-                    $testDir = substr($file, 0, stripos($file, 'src'.DIRECTORY_SEPARATOR.'Module.php')).'/public';
-                    if (is_dir($testDir)) {
-                        $dir = $testDir;
-                    }
-                }
-                if (is_dir($dir)) {
-                    $moduleAssets[$moduleName] = realpath($dir);
-                }
-            } catch (\Exception $e) { // @codeCoverageIgnore
-                $this->logError($e->getMessage()); // @codeCoverageIgnore
-            } // @codeCoverageIgnore
-        }
-
-        return $moduleAssets;
-    }
-
     /**
      * Try to create absolute symlink.
      *
      * Falling back to hard copy.
      */
-    private function absoluteSymlinkWithFallback($originDir, $targetDir)
+    public function absoluteSymlinkWithFallback($originDir, $targetDir)
     {
         try {
             $this->symlink($originDir, $targetDir);
             $method = self::METHOD_ABSOLUTE_SYMLINK;
-        } catch (\Exception $e) { // @codeCoverageIgnore
+        } catch (\Exception $e) {
             // fall back to copy
-            $method = $this->hardCopy($originDir, $targetDir); // @codeCoverageIgnore
-        } // @codeCoverageIgnore
-
+            $method = $this->hardCopy($originDir, $targetDir);
+        }
         return $method;
     }
 
@@ -231,17 +206,14 @@ class AssetsInstaller
      *
      * Falling back to absolute symlink and finally hard copy.
      */
-    private function relativeSymlinkWithFallback($originDir, $targetDir)
+    public function relativeSymlinkWithFallback($originDir, $targetDir)
     {
         try {
             $this->symlink($originDir, $targetDir, true);
             $method = self::METHOD_RELATIVE_SYMLINK;
-        }
-        // @codeCoverageIgnoreStart
-        catch (\Exception $e) {
+        } catch (\Exception $e) {
             $method = $this->absoluteSymlinkWithFallback($originDir, $targetDir);
         }
-        // @codeCoverageIgnoreEnd
 
         return $method;
     }
@@ -251,14 +223,14 @@ class AssetsInstaller
      *
      * @throws \Exception if link can not be created
      */
-    private function symlink($originDir, $targetDir, $relative = false)
+    public function symlink($originDir, $targetDir, $relative = false)
     {
         if ($relative) {
             $this->filesystem->mkdir(dirname($targetDir));
             $originDir = $this->filesystem->makePathRelative($originDir, realpath(dirname($targetDir)));
         }
         $this->filesystem->symlink($originDir, $targetDir);
-        // @codeCoverageIgnoreStart
+
         if (!file_exists($targetDir)) {
             throw new \Exception(
                 sprintf('Symbolic link "%s" was created but appears to be broken.', $targetDir),
@@ -266,13 +238,12 @@ class AssetsInstaller
                 null
             );
         }
-        // @codeCoverageIgnoreEnd
     }
 
     /**
      * Copies origin to target.
      */
-    private function hardCopy($originDir, $targetDir)
+    public function hardCopy($originDir, $targetDir)
     {
         $this->filesystem->mkdir($targetDir, 0777);
         // We use a custom iterator to ignore VCS files

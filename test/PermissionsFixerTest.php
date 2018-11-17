@@ -15,8 +15,11 @@ use Psr\Log\LogLevel;
 use Symfony\Component\Console\Input\StringInput;
 use Symfony\Component\Console\Output\StreamOutput;
 use Symfony\Component\Filesystem\Filesystem;
+use Yawik\Composer\Event\ConfigureEvent;
 use Yawik\Composer\PermissionsFixer;
 use PHPUnit\Framework\TestCase;
+use Yawik\Composer\PermissionsFixerModuleInterface;
+use Yawik\Composer\Plugin;
 
 /**
  * Class PermissionsFixerTest
@@ -25,18 +28,15 @@ use PHPUnit\Framework\TestCase;
  * @author      Anthonius Munthi <http://itstoni.com>
  * @since       0.32.0
  * @covers      \Yawik\Composer\PermissionsFixer
- * @covers      \Yawik\Composer\LogTrait
  */
 class PermissionsFixerTest extends TestCase
 {
-    private $output;
-
-    private $input;
-
     /**
      * @var PermissionsFixer
      */
     private $target;
+
+    private $output;
 
     public function setUp()
     {
@@ -52,50 +52,136 @@ class PermissionsFixerTest extends TestCase
         $this->target       = $target;
     }
 
-    public function testFixDirPermissions()
+    public function testGetSubscribedEvent()
     {
-        $rootDir        = __DIR__.'/sandbox';
+        $this->assertEquals([
+            Plugin::YAWIK_ACTIVATE_EVENT    => 'onActivateEvent',
+            Plugin::YAWIK_CONFIGURE_EVENT   => 'onConfigureEvent'
+        ], PermissionsFixer::getSubscribedEvents());
+    }
 
-        $filesystem     = $this->getMockBuilder(Filesystem::class)
-            //->setMethods(['mkdir','chmod'])
+    public function testOnConfigureEvent()
+    {
+        $module1    = $this->createMock(PermissionsFixerModuleInterface::class);
+        $module2    = $this->createMock(PermissionsFixerModuleInterface::class);
+        $modError   = $this->createMock(PermissionsFixerModuleInterface::class);
+        $modules    = [$module1,$module2];
+        $plugin     = $this->getMockBuilder(PermissionsFixer::class)
+            ->setMethods(['touch','chmod','mkdir','logError'])
             ->getMock()
         ;
-        $filesystem->expects($this->exactly(5))
+
+        foreach ($modules as $index => $module) {
+            $index = $index+1;
+            $module->expects($this->once())
+                ->method('getDirectoryPermissionLists')
+                ->willReturn([
+                    'public/static/module'.$index
+                ])
+            ;
+            $module->expects($this->once())
+                ->method('getFilePermissionLists')
+                ->willReturn([
+                    'public/module'.$index.'.log'
+                ])
+            ;
+        }
+
+        $modError->expects($this->once())
+            ->method('getDirectoryPermissionLists')
+            ->willReturn('foo')
+        ;
+        $modError->expects($this->once())
+            ->method('getFilePermissionLists')
+            ->willReturn('bar')
+        ;
+        $modules[] = $modError;
+        $event = $this->prophesize(ConfigureEvent::class);
+        $event->getModules()
+            ->willReturn($modules)
+            ->shouldBeCalled()
+        ;
+
+        $plugin->expects($this->exactly(2))
+            ->method('touch')
+            ->withConsecutive(
+                ['public/module1.log'],
+                ['public/module2.log']
+            )
+        ;
+        $plugin->expects($this->exactly(2))
+            ->method('mkdir')
+            ->withConsecutive(
+                ['public/static/module1'],
+                ['public/static/module2']
+            );
+        $plugin->expects($this->exactly(4))
             ->method('chmod')
             ->withConsecutive(
-                [$rootDir.'/config/autoload',0777],
-                [$rootDir.'/var/cache',0777],
-                [$rootDir.'/var/log',0777],
-                [$rootDir.'/var/log/tracy',0777],
-                [$rootDir.'/var/log/yawik.log',0666]
+                ['public/static/module1'],
+                ['public/static/module2'],
+                ['public/module1.log'],
+                ['public/module2.log']
             )
         ;
 
-        $logger = $this->prophesize(LoggerInterface::class);
-        $logger
-            ->log(LogLevel::INFO, Argument::containingString('config/autoload'))
-            ->shouldBeCalled()
-        ;
-        $logger
-            ->log(LogLevel::INFO, Argument::containingString('var/cache'))
-            ->shouldBeCalled()
-        ;
-        $logger
-            ->log(LogLevel::INFO, Argument::containingString('var/log'))
-            ->shouldBeCalled()
-        ;
-        $logger
-            ->log(LogLevel::INFO, Argument::containingString('var/log/tracy'))
-            ->shouldBeCalled()
-        ;
-        $logger
-            ->log(LogLevel::INFO, Argument::containingString('var/log/yawik.log'))
-            ->shouldBeCalled()
+        $plugin->expects($this->exactly(2))
+            ->method('logError')
+            ->withConsecutive(
+                [$this->stringContains('getDirectoryPermissionList()')],
+                [$this->stringContains('getFilePermissionList()')]
+            )
         ;
 
+        $plugin->onConfigureEvent($event->reveal());
+    }
 
-        $this->target->setFilesystem($filesystem);
-        $this->target->setLogger($logger->reveal());
-        $this->target->fix();
+    /**
+     * @param string    $method
+     * @param array     $args
+     * @param string    $expectLog
+     * @param string    $logType
+     * @dataProvider    getTestFilesystemAction
+     */
+    public function testFilesystemAction($method, $args, $expectLog, $logType='log')
+    {
+        $plugin = $this->getMockBuilder(TestPermissionFixer::class)
+            ->setMethods([$logType])
+            ->getMock()
+        ;
+
+        $fs = $this->createMock(Filesystem::class);
+        if ('log' == $logType) {
+            $fs->expects($this->once())
+                ->method($method)
+            ;
+        } else {
+            $fs->expects($this->once())
+                ->method($method)
+                ->willThrowException(new \Exception($expectLog))
+            ;
+        }
+
+        $plugin->expects($this->once())
+            ->method($logType)
+            ->with($this->stringContains($expectLog), $method)
+        ;
+
+        $plugin->setFilesystem($fs);
+        call_user_func_array([$plugin,$method], $args);
+    }
+
+    public function getTestFilesystemAction()
+    {
+        return [
+            ['mkdir',['some/dir'],'some/dir'],
+            ['mkdir',['some/dir'],'some error','logError'],
+
+            ['chmod',['some/dir'],'some/dir'],
+            ['chmod',['some/file',0775],'some error','logError'],
+
+            ['touch',['some/file'],'some/file'],
+            ['touch',['some/file'],'some error','logError'],
+        ];
     }
 }
