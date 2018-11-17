@@ -126,7 +126,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         }
         // @codeCoverageIgnoreEnd
 
-        if (!$this->application instanceof Application) {
+        if (!is_object($this->application)) {
             $this->application = Application::init();
         }
         return $this->application;
