@@ -9,6 +9,7 @@
 
 namespace Yawik\Composer;
 
+use Core\Options\ModuleOptions as CoreOptions;
 use Symfony\Component\Filesystem\Filesystem;
 use Yawik\Composer\Event\ConfigureEvent;
 
@@ -36,6 +37,12 @@ class PermissionsFixer
     {
         $modules        = $event->getModules();
         $options        = $event->getOptions();
+
+        $this->fix($options, $modules);
+    }
+
+    public function fix(CoreOptions $options, array $modules)
+    {
         $files          = [];
         $directories    = [];
 

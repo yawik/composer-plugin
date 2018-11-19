@@ -151,7 +151,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         // @codeCoverageIgnoreEnd
 
         $this->configureEvents();
-        $event            = new PreConfigureEvent($this->composer, $this->output);
+        $event            = new PreConfigureEvent($this->output);
         $this->getEventManager()->triggerEvent($event);
 
         $app              = $this->getApplication();

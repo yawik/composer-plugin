@@ -53,8 +53,6 @@ class PluginTest extends TestCase
 
     private $package;
 
-    private $events;
-
     public function setUp()
     {
         $this->testDir = sys_get_temp_dir().'/yawik/composer-plugin/vendor/package';

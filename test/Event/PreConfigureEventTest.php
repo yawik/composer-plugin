@@ -22,15 +22,13 @@ use PHPUnit\Framework\TestCase;
  * @since   0.32.0
  * @covers  \Yawik\Composer\Event\PreConfigureEvent
  */
-class ActivateEventTest extends TestCase
+class PreConfigureEventTest extends TestCase
 {
     public function testConstructor()
     {
-        $composer = $this->createMock(Composer::class);
         $output   = $this->createMock(IOInterface::class);
 
-        $event = new PreConfigureEvent($composer, $output);
-        $this->assertEquals($composer, $event->getComposer());
+        $event = new PreConfigureEvent($output);
         $this->assertEquals($output, $event->getOutput());
     }
 }

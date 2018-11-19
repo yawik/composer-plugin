@@ -24,6 +24,10 @@ class TestLogTrait
     use LogTrait;
 }
 
+/**
+ * Class LogTraitTest
+ * @package YawikTest\Composer
+ */
 class LogTraitTest extends TestCase
 {
     use TestOutputTrait;
@@ -31,9 +35,8 @@ class LogTraitTest extends TestCase
     public function testOnPreConfigureEvent()
     {
         $output = $this->prophesize(IOInterface::class);
-        $composer = $this->prophesize(Composer::class);
 
-        $event = new PreConfigureEvent($composer->reveal(), $output->reveal());
+        $event = new PreConfigureEvent($output->reveal());
         $target = $this->getMockBuilder(TestLogTrait::class)
             ->setMethods(['setOutputFromComposerIO'])
             ->getMock()

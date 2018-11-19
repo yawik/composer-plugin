@@ -21,17 +21,9 @@ class PreConfigureEvent extends Event
      */
     private $output;
 
-    /**
-     * @var Composer
-     */
-    private $composer;
-
-
-    public function __construct(Composer $composer, IOInterface $output)
+    public function __construct(IOInterface $output)
     {
         $this->output       = $output;
-        $this->composer     = $composer;
-
         parent::__construct(Plugin::YAWIK_PRE_CONFIGURE_EVENT);
     }
 
@@ -41,13 +33,5 @@ class PreConfigureEvent extends Event
     public function getOutput()
     {
         return $this->output;
-    }
-
-    /**
-     * @return Composer
-     */
-    public function getComposer()
-    {
-        return $this->composer;
     }
 }

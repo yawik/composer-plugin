@@ -42,9 +42,14 @@ class AssetsInstaller
 
     public function onConfigureEvent(ConfigureEvent $event)
     {
-        $moduleAssets   = array();
         $modules        = $event->getModules();
+        $moduleAssets   = $this->getModulesAsset($modules);
+        $this->install($moduleAssets);
+    }
 
+    public function getModulesAsset(array $modules)
+    {
+        $moduleAssets = [];
         foreach ($modules as $module) {
             $className = get_class($module);
             $moduleName = substr($className, 0, strpos($className, '\\'));
@@ -63,7 +68,7 @@ class AssetsInstaller
                 $moduleAssets[$moduleName] = realpath($dir);
             }
         }
-        $this->install($moduleAssets);
+        return $moduleAssets;
     }
 
     /**
