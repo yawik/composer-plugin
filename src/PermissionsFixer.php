@@ -40,26 +40,27 @@ class PermissionsFixer
         $directories    = [];
 
         foreach ($modules as $module) {
-            if ($module instanceof PermissionsFixerModuleInterface) {
-                $modDirLists    = $module->getDirectoryPermissionLists($options);
-                $modFileLists   = $module->getFilePermissionLists($options);
-
-                if (!is_null($modDirLists) && !is_array($modDirLists)) {
-                    $this->logError(sprintf(
-                        '<comment>%s::getDirectoryPermissionList()</comment> should return an array.',
-                        get_class($module)
-                    ));
-                } else {
-                    $directories    = array_merge($directories, $modDirLists);
-                }
-
+            if ($module instanceof RequireFilePermissionInterface) {
+                $modFileLists   = $module->getRequiredFileLists($options);
                 if (!is_null($modFileLists) && !is_array($modFileLists)) {
                     $this->logError(sprintf(
-                        '<comment>%s::getFilePermissionList()</comment> should return an array.',
+                        '<comment>%s::getRequiredFileList()</comment> should return an array.',
                         get_class($module)
                     ));
                 } else {
                     $files = array_merge($files, $modFileLists);
+                }
+            }
+
+            if ($module instanceof RequireDirectoryPermissionInterface) {
+                $modDirLists = $module->getRequiredDirectoryLists($options);
+                if (!is_null($modDirLists) && !is_array($modDirLists)) {
+                    $this->logError(sprintf(
+                        '<comment>%s::getRequiredDirectoryList()</comment> should return an array.',
+                        get_class($module)
+                    ));
+                } else {
+                    $directories    = array_merge($directories, $modDirLists);
                 }
             }
         }

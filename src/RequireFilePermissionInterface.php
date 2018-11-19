@@ -19,7 +19,7 @@ use Core\Options\ModuleOptions as CoreOptions;
  * @author  Anthonius Munthi <me@itstoni.com>
  * @since   0.32.0
  */
-interface PermissionsFixerModuleInterface
+interface RequireFilePermissionInterface
 {
     /**
      * Lists of files that permissions need to be fixed
@@ -27,13 +27,5 @@ interface PermissionsFixerModuleInterface
      * @param   CoreOptions     $options A CoreOptions object to use
      * @return  array           A list of files
      */
-    public function getFilePermissionLists(CoreOptions $options);
-
-    /**
-     * Lists of directories that permissions need to be fixed
-     *
-     * @param   CoreOptions     $options A CoreOptions object to use
-     * @return array A list of files
-     */
-    public function getDirectoryPermissionLists(CoreOptions $options);
+    public function getRequiredFileLists(CoreOptions $options);
 }

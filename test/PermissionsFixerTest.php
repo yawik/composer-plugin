@@ -15,7 +15,8 @@ use Symfony\Component\Filesystem\Filesystem;
 use Yawik\Composer\Event\ConfigureEvent;
 use Yawik\Composer\PermissionsFixer;
 use PHPUnit\Framework\TestCase;
-use Yawik\Composer\PermissionsFixerModuleInterface;
+use Yawik\Composer\RequireDirectoryPermissionInterface;
+use Yawik\Composer\RequireFilePermissionInterface;
 use Core\Options\ModuleOptions as CoreOptions;
 
 /**
@@ -51,9 +52,9 @@ class PermissionsFixerTest extends TestCase
 
     public function testOnConfigureEvent()
     {
-        $module1    = $this->createMock(PermissionsFixerModuleInterface::class);
-        $module2    = $this->createMock(PermissionsFixerModuleInterface::class);
-        $modError   = $this->createMock(PermissionsFixerModuleInterface::class);
+        $module1    = $this->createMock(RequireFileAndDirPermissionModule::class);
+        $module2    = $this->createMock(RequireFileAndDirPermissionModule::class);
+        $modError   = $this->createMock(RequireFileAndDirPermissionModule::class);
         $modules    = [$module1,$module2];
         $plugin     = $this->getMockBuilder(PermissionsFixer::class)
             ->setMethods(['touch','chmod','mkdir','logError'])
@@ -63,13 +64,13 @@ class PermissionsFixerTest extends TestCase
         foreach ($modules as $index => $module) {
             $index = $index+1;
             $module->expects($this->once())
-                ->method('getDirectoryPermissionLists')
+                ->method('getRequiredDirectoryLists')
                 ->willReturn([
                     'public/static/module'.$index
                 ])
             ;
             $module->expects($this->once())
-                ->method('getFilePermissionLists')
+                ->method('getRequiredFileLists')
                 ->willReturn([
                     'public/module'.$index.'.log'
                 ])
@@ -77,11 +78,11 @@ class PermissionsFixerTest extends TestCase
         }
 
         $modError->expects($this->once())
-            ->method('getDirectoryPermissionLists')
+            ->method('getRequiredDirectoryLists')
             ->willReturn('foo')
         ;
         $modError->expects($this->once())
-            ->method('getFilePermissionLists')
+            ->method('getRequiredFileLists')
             ->willReturn('bar')
         ;
         $modules[] = $modError;
@@ -122,8 +123,8 @@ class PermissionsFixerTest extends TestCase
         $plugin->expects($this->exactly(2))
             ->method('logError')
             ->withConsecutive(
-                [$this->stringContains('getDirectoryPermissionList()')],
-                [$this->stringContains('getFilePermissionList()')]
+                [$this->stringContains('should return an array.')],
+                [$this->stringContains('should return an array.')]
             )
         ;
 
@@ -178,4 +179,10 @@ class PermissionsFixerTest extends TestCase
             ['touch',['some/file'],'some error','logError'],
         ];
     }
+}
+
+abstract class RequireFileAndDirPermissionModule implements
+    RequireDirectoryPermissionInterface,
+    RequireFilePermissionInterface
+{
 }

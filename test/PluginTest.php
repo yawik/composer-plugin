@@ -24,7 +24,7 @@ use PHPUnit\Framework\TestCase;
 use Prophecy\Argument;
 use Yawik\Composer\Event\ActivateEvent;
 use Yawik\Composer\Event\ConfigureEvent;
-use Yawik\Composer\PermissionsFixerModuleInterface;
+use Yawik\Composer\RequireFilePermissionInterface;
 use Yawik\Composer\Plugin;
 use Zend\EventManager\EventManager;
 use Zend\ModuleManager\ModuleManager;
@@ -276,7 +276,7 @@ class PluginTest extends TestCase
         $app        = $this->prophesize(Application::class);
         $manager    = $this->prophesize(ModuleManager::class);
         $options    = $this->prophesize(ModuleOptions::class);
-        $mod1       = $this->prophesize(PermissionsFixerModuleInterface::class)->reveal();
+        $mod1       = $this->prophesize(RequireFilePermissionInterface::class)->reveal();
         $modules    = [$mod1];
         $events     = $this->createMock(EventManager::class);
 

@@ -8,19 +8,20 @@
 
 namespace Foo;
 
-use Yawik\Composer\PermissionsFixerModuleInterface;
+use Yawik\Composer\RequireDirectoryPermissionInterface;
+use Yawik\Composer\RequireFilePermissionInterface;
 use Core\Options\ModuleOptions as CoreOptions;
 
-class Module implements PermissionsFixerModuleInterface
+class Module implements RequireFilePermissionInterface, RequireDirectoryPermissionInterface
 {
-    public function getDirectoryPermissionLists(CoreOptions $options)
+    public function getRequiredDirectoryLists(CoreOptions $options)
     {
         return [
             'public/static/Organizations/images'
         ];
     }
 
-    public function getFilePermissionLists(CoreOptions $options)
+    public function getRequiredFileLists(CoreOptions $options)
     {
         return [];
     }
