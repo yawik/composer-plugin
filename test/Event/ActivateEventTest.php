@@ -11,7 +11,7 @@ namespace YawikTest\Composer\Event;
 
 use Composer\Composer;
 use Composer\IO\IOInterface;
-use Yawik\Composer\Event\ActivateEvent;
+use Yawik\Composer\Event\PreConfigureEvent;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -20,7 +20,7 @@ use PHPUnit\Framework\TestCase;
  * @package YawikTest\Composer\Event
  * @author  Anthonius Munthi <https://itstoni.com>
  * @since   0.32.0
- * @covers  \Yawik\Composer\Event\ActivateEvent
+ * @covers  \Yawik\Composer\Event\PreConfigureEvent
  */
 class ActivateEventTest extends TestCase
 {
@@ -29,7 +29,7 @@ class ActivateEventTest extends TestCase
         $composer = $this->createMock(Composer::class);
         $output   = $this->createMock(IOInterface::class);
 
-        $event = new ActivateEvent($composer, $output);
+        $event = new PreConfigureEvent($composer, $output);
         $this->assertEquals($composer, $event->getComposer());
         $this->assertEquals($output, $event->getOutput());
     }

@@ -15,7 +15,7 @@ use Psr\Log\LogLevel;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\StringInput;
 use Symfony\Component\Console\Output\OutputInterface;
-use Yawik\Composer\Event\ActivateEvent;
+use Yawik\Composer\Event\PreConfigureEvent;
 use Yawik\Composer\LogTrait;
 use PHPUnit\Framework\TestCase;
 
@@ -28,12 +28,12 @@ class LogTraitTest extends TestCase
 {
     use TestOutputTrait;
 
-    public function testOnActivateEvent()
+    public function testOnPreConfigureEvent()
     {
         $output = $this->prophesize(IOInterface::class);
         $composer = $this->prophesize(Composer::class);
 
-        $event = new ActivateEvent($composer->reveal(), $output->reveal());
+        $event = new PreConfigureEvent($composer->reveal(), $output->reveal());
         $target = $this->getMockBuilder(TestLogTrait::class)
             ->setMethods(['setOutputFromComposerIO'])
             ->getMock()
@@ -43,7 +43,7 @@ class LogTraitTest extends TestCase
             ->with($output->reveal())
         ;
 
-        $target->onActivateEvent($event);
+        $target->onPreConfigureEvent($event);
     }
 
     /**

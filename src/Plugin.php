@@ -17,7 +17,7 @@ use Composer\IO\IOInterface;
 use Composer\Package\PackageInterface;
 use Composer\Plugin\PluginInterface;
 use Core\Application;
-use Yawik\Composer\Event\ActivateEvent;
+use Yawik\Composer\Event\PreConfigureEvent;
 use Yawik\Composer\Event\ConfigureEvent;
 use Zend\EventManager\EventManager;
 
@@ -30,15 +30,15 @@ use Zend\EventManager\EventManager;
  */
 class Plugin implements PluginInterface, EventSubscriberInterface
 {
-    const YAWIK_ACTIVATE_EVENT  = 'yawik.activate';
+    const YAWIK_PRE_CONFIGURE_EVENT  = 'yawik.configure.pre';
 
-    const YAWIK_CONFIGURE_EVENT = 'yawik.configure';
+    const YAWIK_CONFIGURE_EVENT      = 'yawik.configure';
 
-    const YAWIK_MODULE_TYPE     = 'yawik-module';
+    const YAWIK_MODULE_TYPE          = 'yawik-module';
 
-    const ADD_TYPE_INSTALL      = 'install';
+    const ADD_TYPE_INSTALL           = 'install';
 
-    const ADD_TYPE_REMOVE       = 'remove';
+    const ADD_TYPE_REMOVE            = 'remove';
 
     /**
      * @var Application
@@ -80,8 +80,8 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         $fixer        = new PermissionsFixer();
 
         // activate events
-        $eventManager->attach(self::YAWIK_ACTIVATE_EVENT, [$assets,'onActivateEvent']);
-        $eventManager->attach(self::YAWIK_ACTIVATE_EVENT, [$fixer,'onActivateEvent']);
+        $eventManager->attach(self::YAWIK_PRE_CONFIGURE_EVENT, [ $assets, 'onPreConfigureEvent']);
+        $eventManager->attach(self::YAWIK_PRE_CONFIGURE_EVENT, [ $fixer, 'onPreConfigureEvent']);
 
         // configure events
         $eventManager->attach(self::YAWIK_CONFIGURE_EVENT, [$assets,'onConfigureEvent']);
@@ -151,7 +151,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         // @codeCoverageIgnoreEnd
 
         $this->configureEvents();
-        $event            = new ActivateEvent($this->composer, $this->output);
+        $event            = new PreConfigureEvent($this->composer, $this->output);
         $this->getEventManager()->triggerEvent($event);
 
         $app              = $this->getApplication();

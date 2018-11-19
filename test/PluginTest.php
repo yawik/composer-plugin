@@ -22,7 +22,7 @@ use Core\Options\ModuleOptions;
 use Interop\Container\ContainerInterface;
 use PHPUnit\Framework\TestCase;
 use Prophecy\Argument;
-use Yawik\Composer\Event\ActivateEvent;
+use Yawik\Composer\Event\PreConfigureEvent;
 use Yawik\Composer\Event\ConfigureEvent;
 use Yawik\Composer\RequireFilePermissionInterface;
 use Yawik\Composer\Plugin;
@@ -124,8 +124,8 @@ class PluginTest extends TestCase
         $manager->expects($this->exactly(4))
             ->method('attach')
             ->withConsecutive(
-                [Plugin::YAWIK_ACTIVATE_EVENT,$this->isType('array')],
-                [Plugin::YAWIK_ACTIVATE_EVENT,$this->isType('array')],
+                [ Plugin::YAWIK_PRE_CONFIGURE_EVENT, $this->isType('array')],
+                [ Plugin::YAWIK_PRE_CONFIGURE_EVENT, $this->isType('array')],
                 [Plugin::YAWIK_CONFIGURE_EVENT,$this->isType('array')],
                 [Plugin::YAWIK_CONFIGURE_EVENT,$this->isType('array')]
             )
@@ -286,7 +286,7 @@ class PluginTest extends TestCase
             return true;
         };
         $assertActivateEvent = function ($event) {
-            $this->assertInstanceOf(ActivateEvent::class, $event);
+            $this->assertInstanceOf(PreConfigureEvent::class, $event);
             $this->assertInstanceOf(IOInterface::class, $event->getOutput());
             $this->assertInstanceOf(Composer::class, $event->getComposer());
             return true;

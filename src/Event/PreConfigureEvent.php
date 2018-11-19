@@ -14,7 +14,7 @@ use Zend\EventManager\Event;
 use Composer\IO\IOInterface;
 use Yawik\Composer\Plugin;
 
-class ActivateEvent extends Event
+class PreConfigureEvent extends Event
 {
     /**
      * @var IOInterface
@@ -32,7 +32,7 @@ class ActivateEvent extends Event
         $this->output       = $output;
         $this->composer     = $composer;
 
-        parent::__construct(Plugin::YAWIK_ACTIVATE_EVENT);
+        parent::__construct(Plugin::YAWIK_PRE_CONFIGURE_EVENT);
     }
 
     /**
