@@ -50,4 +50,14 @@ class TestPlugin extends Plugin
     {
         $this->output = $output;
     }
+
+    public function getComposer()
+    {
+        return $this->composer;
+    }
+
+    public function getOutput()
+    {
+        return $this->output;
+    }
 }

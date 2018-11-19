@@ -121,12 +121,6 @@ class PluginTest extends TestCase
 
     private function configureEventManager($manager)
     {
-        $eventChecker = function ($event) {
-            $this->assertInstanceOf(ActivateEvent::class, $event);
-            $this->assertInstanceOf(IOInterface::class, $event->getOutput());
-            $this->assertInstanceOf(Composer::class, $event->getComposer());
-            return true;
-        };
         $manager->expects($this->exactly(4))
             ->method('attach')
             ->withConsecutive(
@@ -135,11 +129,6 @@ class PluginTest extends TestCase
                 [Plugin::YAWIK_CONFIGURE_EVENT,$this->isType('array')],
                 [Plugin::YAWIK_CONFIGURE_EVENT,$this->isType('array')]
             )
-        ;
-
-        $manager->expects($this->once())
-            ->method('triggerEvent')
-            ->with($this->callback($eventChecker))
         ;
     }
 
@@ -153,13 +142,12 @@ class PluginTest extends TestCase
     {
         $composer   = $this->prophesize(Composer::class);
         $io         = $this->prophesize(IOInterface::class);
-        $manager    = $this->createMock(EventManager::class);
-
-        $this->configureEventManager($manager);
 
         $plugin = new TestPlugin();
-        $plugin->setEventManager($manager);
         $plugin->activate($composer->reveal(), $io->reveal());
+
+        $this->assertEquals($composer->reveal(), $plugin->getComposer());
+        $this->assertEquals($io->reveal(), $plugin->getOutput());
     }
 
     public function testAddInstalledModules()
@@ -280,30 +268,42 @@ class PluginTest extends TestCase
         $modules    = [$mod1];
         $events     = $this->createMock(EventManager::class);
 
+        $this->configureEventManager($events);
+
         $app->getServiceManager()->willReturn($container);
         $container->get('ModuleManager')->willReturn($manager);
         $container->get('Core/Options')->willReturn($options->reveal());
         $manager->getLoadedModules()->willReturn($modules);
 
         //$this->configureEventManager($events);
-        $assertEvent = function ($event) use ($mod1, $options) {
+        $assertConfigureEvent = function ($event) use ($mod1, $options) {
             $this->assertInstanceOf(ConfigureEvent::class, $event);
             $this->assertEquals($options->reveal(), $event->getOptions());
-
             $modules = $event->getModules();
             $this->assertCount(2, $modules);
             $this->assertContains($mod1, $modules);
             $this->assertInstanceOf(CoreModule::class, $modules[1]);
             return true;
         };
-        $events->expects($this->once())
+        $assertActivateEvent = function ($event) {
+            $this->assertInstanceOf(ActivateEvent::class, $event);
+            $this->assertInstanceOf(IOInterface::class, $event->getOutput());
+            $this->assertInstanceOf(Composer::class, $event->getComposer());
+            return true;
+        };
+
+        $events->expects($this->exactly(2))
             ->method('triggerEvent')
-            ->with($this->callback($assertEvent))
+            ->withConsecutive(
+                $this->callback($assertActivateEvent),
+                $this->callback($assertConfigureEvent)
+            )
         ;
 
         $plugin = new TestPlugin();
         $plugin->setEventManager($events);
         $plugin->setInstalledModules(['Core']);
+        $plugin->activate($this->composer->reveal(), $this->output->reveal());
         $plugin->setApplication($app->reveal());
         $plugin->onPostAutoloadDump();
     }

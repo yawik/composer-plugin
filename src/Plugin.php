@@ -90,19 +90,8 @@ class Plugin implements PluginInterface, EventSubscriberInterface
 
     public function activate(Composer $composer, IOInterface $io)
     {
-        // @codeCoverageIgnoreStart
-        if (is_file($file = __DIR__.'/../../../autoload.php')) {
-            include $file;
-        }
-        // @codeCoverageIgnoreEnd
-        
-        $this->configureEvents();
-
         $this->composer   = $composer;
         $this->output     = $io;
-        $event            = new ActivateEvent($composer, $io);
-
-        $this->getEventManager()->triggerEvent($event);
     }
 
     /**
@@ -155,6 +144,16 @@ class Plugin implements PluginInterface, EventSubscriberInterface
 
     public function onPostAutoloadDump()
     {
+        // @codeCoverageIgnoreStart
+        if (is_file($file = __DIR__.'/../../../autoload.php')) {
+            include $file;
+        }
+        // @codeCoverageIgnoreEnd
+
+        $this->configureEvents();
+        $event            = new ActivateEvent($this->composer, $this->output);
+        $this->getEventManager()->triggerEvent($event);
+
         $app              = $this->getApplication();
         $modules          = $app->getServiceManager()->get('ModuleManager')->getLoadedModules();
         $installed        = $this->installed;
