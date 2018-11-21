@@ -73,17 +73,25 @@ class PermissionsFixer
         }
 
         foreach ($directories as $directory) {
-            if (!is_dir($directory)) {
-                $this->mkdir($directory);
+            try {
+                if (!is_dir($directory)) {
+                    $this->mkdir($directory);
+                }
+                $this->chmod($directory);
+            } catch (\Exception $exception) {
+                $this->logError($exception->getMessage());
             }
-            $this->chmod($directory);
         }
 
         foreach ($files as $file) {
-            if (!is_file($file)) {
-                $this->touch($file);
+            try {
+                if (!is_file($file)) {
+                    $this->touch($file);
+                }
+                $this->chmod($file, 0666);
+            } catch (\Exception $e) {
+                $this->logError($e->getMessage());
             }
-            $this->chmod($file, 0666);
         }
     }
 
