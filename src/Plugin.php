@@ -146,7 +146,8 @@ class Plugin implements PluginInterface, EventSubscriberInterface
     {
         // @codeCoverageIgnoreStart
         if (is_file($file = __DIR__.'/../../../autoload.php')) {
-            include $file;
+            $loader = require $file;
+            $loader->register();
         }
         // @codeCoverageIgnoreEnd
 
