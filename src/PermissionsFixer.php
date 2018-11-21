@@ -55,7 +55,11 @@ class PermissionsFixer
                         get_class($module)
                     ));
                 } else {
-                    $files = array_merge_recursive($files, $modFileLists);
+                    foreach ($modFileLists as $file) {
+                        if (!in_array($file, $files)) {
+                            $files[] = $file;
+                        }
+                    }
                 }
             }
 
@@ -67,7 +71,11 @@ class PermissionsFixer
                         get_class($module)
                     ));
                 } else {
-                    $directories    = array_merge_recursive($directories, $modDirLists);
+                    foreach ($modDirLists as $directory) {
+                        if (!in_array($directory, $directories)) {
+                            $directories[] = $directory;
+                        }
+                    }
                 }
             }
         }
