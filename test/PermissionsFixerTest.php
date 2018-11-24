@@ -131,6 +131,45 @@ class PermissionsFixerTest extends TestCase
         $plugin->onConfigureEvent($event->reveal());
     }
 
+    public function testFixThrowErrorOnInvalidDirectory()
+    {
+        $modDir         = $this->createMock(RequireDirectoryPermissionInterface::class);
+        $modFile        = $this->createMock(RequireFilePermissionInterface::class);
+        $options        = $this->prophesize(CoreOptions::class);
+        $dirException   = 'some dir exception';
+        $fileException  = 'some file exception';
+
+        $plugin     = $this->getMockBuilder(PermissionsFixer::class)
+            ->setMethods(['touch','chmod','mkdir','logError'])
+            ->getMock()
+        ;
+
+        $modDir->expects($this->once())
+            ->method('getRequiredDirectoryLists')
+            ->willReturn(['some_dir']);
+        $modFile->expects($this->once())
+            ->method('getRequiredFileLists')
+            ->willReturn(['some_file']);
+
+        $plugin->expects($this->once())
+            ->method('mkdir')
+            ->with('some_dir')
+            ->willThrowException(new \Exception($dirException));
+
+        $plugin->expects($this->once())
+            ->method('touch')
+            ->with('some_file')
+            ->willThrowException(new \Exception($fileException));
+        $plugin->expects($this->exactly(2))
+            ->method('logError')
+            ->withConsecutive(
+                [$dirException],
+                [$fileException]
+            );
+
+        $plugin->fix($options->reveal(), [$modDir, $modFile]);
+    }
+
     /**
      * @param string    $method
      * @param array     $args
