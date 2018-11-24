@@ -1,0 +1,8 @@
+test export-ignore
+build export-ignore
+/.coveralls export-ignore
+/.gitignore export-ignore
+/.travis.yml export-ignore
+/phpcs.xml export-ignore
+/phpunit.xml.dist export-ignore
+/.gitattributtes export-ignore
