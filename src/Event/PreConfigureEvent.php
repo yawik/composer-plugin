@@ -10,7 +10,7 @@
 namespace Yawik\Composer\Event;
 
 use Composer\Composer;
-use Zend\EventManager\Event;
+use Laminas\EventManager\Event;
 use Composer\IO\IOInterface;
 use Yawik\Composer\Plugin;
 

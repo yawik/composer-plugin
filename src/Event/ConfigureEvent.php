@@ -9,7 +9,7 @@
 
 namespace Yawik\Composer\Event;
 
-use Zend\EventManager\Event;
+use Laminas\EventManager\Event;
 use Core\Options\ModuleOptions as CoreOptions;
 use Yawik\Composer\Plugin;
 

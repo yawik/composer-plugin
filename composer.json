@@ -25,11 +25,12 @@
         "psr/log": "^1.0",
         "symfony/console": "^3.4 | ^4.1",
         "symfony/finder": "^3.4 | ^4.1",
-        "zendframework/zend-eventmanager": "^3.2"
+        "laminas/laminas-eventmanager": "^3.2",
+        "laminas/laminas-dependency-plugin": "^1.0"
     },
     "require-dev": {
         "composer/composer": ">=1.0.0-alpha10",
-        "mikey179/vfsStream": "^1.6",
+        "mikey179/vfsstream": "^1.6",
         "phpunit/phpunit": "^5.7.23 || ^6.4.3",
         "squizlabs/php_codesniffer": "^2.6.2",
         "yawik/core": ">=0.32@dev"

@@ -26,9 +26,9 @@ use Yawik\Composer\Event\PreConfigureEvent;
 use Yawik\Composer\Event\ConfigureEvent;
 use Yawik\Composer\RequireFilePermissionInterface;
 use Yawik\Composer\Plugin;
-use Zend\EventManager\EventManager;
-use Zend\ModuleManager\ModuleManager;
-use Zend\Mvc\Application as ZendMvcApplication;
+use Laminas\EventManager\EventManager;
+use Laminas\ModuleManager\ModuleManager;
+use Laminas\Mvc\Application as LaminasMvcApplication;
 
 /**
  * Class        PluginTest
@@ -133,7 +133,7 @@ class PluginTest extends TestCase
     public function testGetApplication()
     {
         $plugin = new Plugin();
-        $this->assertInstanceOf(ZendMvcApplication::class, $plugin->getApplication());
+        $this->assertInstanceOf(LaminasMvcApplication::class, $plugin->getApplication());
     }
 
     public function testActivate()

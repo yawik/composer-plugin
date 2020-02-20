@@ -12,7 +12,7 @@ namespace YawikTest\Composer;
 use Composer\IO\IOInterface;
 use Core\Application;
 use Yawik\Composer\Plugin;
-use Zend\EventManager\EventManager;
+use Laminas\EventManager\EventManager;
 
 /**
  * A class to make Plugin class testable

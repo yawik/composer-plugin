@@ -19,7 +19,7 @@ use Composer\Plugin\PluginInterface;
 use Core\Application;
 use Yawik\Composer\Event\PreConfigureEvent;
 use Yawik\Composer\Event\ConfigureEvent;
-use Zend\EventManager\EventManager;
+use Laminas\EventManager\EventManager;
 
 /**
  * Class Plugin
@@ -122,7 +122,7 @@ class Plugin implements PluginInterface, EventSubscriberInterface
 
     /**
      * Get Yawik Application to use
-     * @return Application|\Zend\Mvc\Application
+     * @return Application|\Laminas\Mvc\Application
      */
     public function getApplication()
     {
