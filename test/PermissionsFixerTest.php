@@ -24,7 +24,10 @@ use Core\Options\ModuleOptions as CoreOptions;
  *
  * @package     YawikTest\Composer
  * @author      Anthonius Munthi <http://itstoni.com>
+ * @author      Mathias Gelhausen <gelhausen@cross-solution.de>
  * @since       0.32.0
+ * @since       3.0
+ *              Upgrade to phpunit 8
  * @covers      \Yawik\Composer\PermissionsFixer
  */
 class PermissionsFixerTest extends TestCase
@@ -36,7 +39,7 @@ class PermissionsFixerTest extends TestCase
 
     private $output;
 
-    public function setUp()
+    public function setUp(): void
     {
         $output   = new StreamOutput(fopen('php://memory', 'w'));
         $input    = new StringInput('some input');
