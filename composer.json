@@ -31,7 +31,7 @@
     "require-dev": {
         "composer/composer": ">=1.0.0-alpha10",
         "mikey179/vfsstream": "^1.6",
-        "phpunit/phpunit": "^5.7.23 || ^6.4.3",
+        "phpunit/phpunit": "^8.0",
         "squizlabs/php_codesniffer": "^2.6.2",
         "yawik/core": ">=0.32@dev"
     },
