@@ -94,6 +94,16 @@ class Plugin implements PluginInterface, EventSubscriberInterface
         $this->output     = $io;
     }
 
+    public function deactivate(Composer $composer, IOInterface $io)
+    {
+        /* noop */
+    }
+
+    public function uninstall(Composer $composer, IOInterface $io)
+    {
+        /* noop */
+    }
+
     /**
      * Provide composer event listeners.
      *
