@@ -34,7 +34,11 @@ use Laminas\Mvc\Application as LaminasMvcApplication;
  * Class        PluginTest
  * @package     YawikTest\Composer
  * @author      Anthonius Munthi <me@itstoni.com>
+ * @author      Mathias Gelhausen <gelhausen@cross-solution.de>
+ *
  * @since       0.32.0
+ * @since       3.0
+ *              Upgrade to phpunit 8.5
  * @covers      \Yawik\Composer\Plugin
  */
 class PluginTest extends TestCase
@@ -53,7 +57,7 @@ class PluginTest extends TestCase
 
     private $package;
 
-    public function setUp()
+    public function setUp(): void
     {
         $this->testDir = sys_get_temp_dir().'/yawik/composer-plugin/vendor/package';
         if (!is_dir($this->testDir)) {
@@ -286,15 +290,14 @@ class PluginTest extends TestCase
         $assertActivateEvent = function ($event) {
             $this->assertInstanceOf(PreConfigureEvent::class, $event);
             $this->assertInstanceOf(IOInterface::class, $event->getOutput());
-            $this->assertInstanceOf(Composer::class, $event->getComposer());
             return true;
         };
 
         $events->expects($this->exactly(2))
             ->method('triggerEvent')
             ->withConsecutive(
-                $this->callback($assertActivateEvent),
-                $this->callback($assertConfigureEvent)
+                [$this->callback($assertActivateEvent)],
+                [$this->callback($assertConfigureEvent)]
             )
         ;
 

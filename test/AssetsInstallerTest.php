@@ -26,7 +26,10 @@ use Yawik\Composer\Event\ConfigureEvent;
  *
  * @package YawikTest\Composer
  * @author  Anthonius Munthi <me@itstoni.com>
+ * @author  Mathias Gelhausen <gelhausen@cross-solution.de>
  * @since   0.32.0
+ * @since   3.0
+ *          Upgrade to phpunit 8.5
  * @covers  \Yawik\Composer\AssetsInstaller
  */
 class AssetsInstallerTest extends TestCase
@@ -54,7 +57,7 @@ class AssetsInstallerTest extends TestCase
         $modulesAssert = function ($modules) {
             $this->assertCount(2, $modules);
             $this->assertArrayHasKey('Core', $modules);
-            $this->assertContains('/vendor/yawik/core', $modules['Core']);
+            $this->assertStringContainsString('/vendor/yawik/core', $modules['Core']);
             return true;
         };
         $installer->expects($this->once())
@@ -186,12 +189,12 @@ class AssetsInstallerTest extends TestCase
 
         $installer->renderInstallOutput(true, [['Core','method','ok']], 0);
         $display = $this->getDisplay();
-        $this->assertContains('Yawik Assets Installed!', $display);
-        $this->assertContains('installed via copy', $display);
+        $this->assertStringContainsString('Yawik Assets Installed!', $display);
+        $this->assertStringContainsString('installed via copy', $display);
 
         $installer->renderInstallOutput(false, [['Core','method','ok']], 1);
         $display = $this->getDisplay();
-        $this->assertContains('Some errors occurred while installing assets', $display);
+        $this->assertStringContainsString('Some errors occurred while installing assets', $display);
     }
 
     public function testAbsoluteSymlinkWithFallback()
