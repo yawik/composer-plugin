@@ -12,7 +12,6 @@ namespace Yawik\Composer;
 
 use Core\Application;
 use Symfony\Component\Filesystem\Filesystem;
-use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Finder\Finder;
 use Yawik\Composer\Event\ConfigureEvent;
 
@@ -108,13 +107,13 @@ class AssetsInstaller
                 }
 
                 if ($method === $expectedMethod) {
-                    $rows[] = array(sprintf('<fg=green;options=bold>%s</>', '\\' === DIRECTORY_SEPARATOR ? 'OK' : "\xE2\x9C\x94" /* HEAVY CHECK MARK (U+2714) */), $message, $method);
+                    $rows[] = array('\\' === DIRECTORY_SEPARATOR ? 'OK' : "\xE2\x9C\x94" /* HEAVY CHECK MARK (U+2714) */, $message, $method);
                 } else {
-                    $rows[] = array(sprintf('<fg=yellow;options=bold>%s</>', '\\' === DIRECTORY_SEPARATOR ? 'WARNING' : '!'), $message, $method);
+                    $rows[] = array('\\' === DIRECTORY_SEPARATOR ? 'WARNING' : '!', $message, $method);
                 }
             } catch (\Exception $e) {
                 $exitCode = 1;
-                $rows[] = array(sprintf('<fg=red;options=bold>%s</>', '\\' === DIRECTORY_SEPARATOR ? 'ERROR' : "\xE2\x9C\x98" /* HEAVY BALLOT X (U+2718) */), $message, $e->getMessage());
+                $rows[] = array('\\' === DIRECTORY_SEPARATOR ? 'ERROR' : "\xE2\x9C\x98" /* HEAVY BALLOT X (U+2718) */, $message, $e->getMessage());
             }
         }
 
@@ -161,23 +160,30 @@ class AssetsInstaller
 
     public function renderInstallOutput($copyUsed, $rows, $exitCode)
     {
-        $io = new SymfonyStyle($this->getInput(), $this->getOutput());
-        $io->newLine();
+        $io = $this->getOutput();
+        $io->writeln('');
 
-        $io->section('Yawik Assets Installed!');
+        $io->writeln('Yawik Assets Installed!');
+        $io->writeln('-----------------------');
 
         if ($rows) {
-            $io->table(array('', 'Module', 'Method / Error'), $rows);
+            foreach ($rows as [$check, $name, $method]) {
+                $io->writeln("$name $check ($method)");
+            }
         }
 
+        $io->writeln('-----------------------');
+
+
         if (0 !== $exitCode) {
-            $io->error('Some errors occurred while installing assets.');
+            $io->writeln('Some errors occurred while installing assets.');
         } else {
             if ($copyUsed) {
-                $io->note('Some assets were installed via copy. If you make changes to these assets you have to run this command again.');
+                $io->writeln('Some assets were installed via copy. If you make changes to these assets you have to run this command again.');
             }
-            $io->success($rows ? 'All assets were successfully installed.' : 'No assets were provided by any bundle.');
+            $io->writeln($rows ? 'All assets were successfully installed.' : 'No assets were provided by any bundle.');
         }
+        $io->writeln('');
     }
 
     /**
